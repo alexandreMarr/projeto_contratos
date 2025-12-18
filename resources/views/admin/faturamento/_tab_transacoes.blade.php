@@ -22,6 +22,7 @@
             <th>Vl. Bruto</th>
             <th>Alíquota IR</th>
             <th>Valor IR</th>
+            <th>Vl. Líquido</th>
             <th>Placa</th>
         </tr>
     </thead>

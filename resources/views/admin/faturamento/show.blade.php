@@ -276,6 +276,7 @@ $(document).ready(function() {
                     { data: 'valor_total' },
                     { data: 'aliquota_ir' },
                     { data: 'valor_ir' },
+                    { data: 'valor_liquido'},
                     { data: 'placa' },
                 ],
                 language: {

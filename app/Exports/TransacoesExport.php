@@ -7,19 +7,23 @@ use Illuminate\Database\Query\Builder;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize; // Recomendado para ajustar largura
 use Carbon\Carbon;
 
-class TransacoesExport implements FromQuery, WithHeadings, WithMapping
+class TransacoesExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
 {
     protected $query;
     protected $parametrosAtivos;
     protected $taxas;
+    protected $paramGlobal; // 1. Nova propriedade
 
-    public function __construct($query, $parametrosAtivos, $taxas)
+    // 2. Construtor atualizado recebendo $paramGlobal
+    public function __construct($query, $parametrosAtivos, $taxas, $paramGlobal)
     {
         $this->query = $query;
         $this->parametrosAtivos = $parametrosAtivos;
         $this->taxas = $taxas;
+        $this->paramGlobal = $paramGlobal;
     }
 
     /**
@@ -35,7 +39,6 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
     */
     public function headings(): array
     {
-        // Cabeçalhos "completos" conforme solicitado
         return [
             'ID Transação',
             'Faturada?',
@@ -43,6 +46,7 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
             'Data Transação',
             'ID Credenciado',
             'Credenciado',
+            'UF Credenciado', // Útil para conferência
             'ID Cliente',
             'Cliente',
             'ID Unidade',
@@ -62,6 +66,7 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
             'Valor Total (Bruto)',
             'Alíquota IR Aplicada',
             'Valor IR Calculado',
+            'Valor Líquido', // 3. Nova Coluna
         ];
     }
 
@@ -72,12 +77,33 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
     public function map($row): array
     {
         $aliquota_ir = 0;
+        $valor_ir = 0;
+
+        // --- 4. LÓGICA DE CÁLCULO DO IR COM VALIDAÇÃO DE ESTADO ---
         if (!$this->parametrosAtivos['isento_ir']) {
-            $categoriaId = optional($row->produto)->produto_categoria_id;
-            $taxa = $this->taxas->get($categoriaId);
-            $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+            $deveCobrarIR = true;
+
+            // Verifica o parâmetro global sobre cobrar fora de RO
+            if ($this->paramGlobal && !$this->paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                // Navega segura: Credenciado -> Municipio -> Estado -> Sigla
+                $uf = optional(optional(optional($row->credenciado)->municipio)->estado)->sigla;
+                
+                // Se UF existe e for diferente de 'RO', não cobra
+                if ($uf && $uf !== 'RO') {
+                    $deveCobrarIR = false;
+                }
+            }
+
+            if ($deveCobrarIR) {
+                $categoriaId = optional($row->produto)->produto_categoria_id;
+                $taxa = $this->taxas->get($categoriaId);
+                $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                $valor_ir = $row->valor_total * $aliquota_ir;
+            }
         }
-        $valor_ir = $row->valor_total * $aliquota_ir;
+
+        // Cálculo do Líquido
+        $valor_liquido = $row->valor_total - $valor_ir;
 
         return [
             $row->id,
@@ -86,6 +112,7 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
             Carbon::parse($row->data_transacao)->format('d/m/Y H:i:s'),
             $row->credenciado_id,
             optional($row->credenciado)->razao_social ?? 'N/A',
+            optional(optional(optional($row->credenciado)->municipio)->estado)->sigla ?? 'N/A', // Coluna UF
             $row->cliente_id,
             optional($row->cliente)->razao_social ?? 'N/A',
             $row->unidade_id,
@@ -102,9 +129,10 @@ class TransacoesExport implements FromQuery, WithHeadings, WithMapping
             optional($row->produto)->nome ?? 'N/A',
             $row->quantidade,
             $row->valor_unitario,
-            $row->valor_total,
-            $aliquota_ir,
-            $valor_ir,
+            $row->valor_total,    // Valor Bruto
+            $aliquota_ir,         // Alíquota
+            $valor_ir,            // Valor IR
+            $valor_liquido,       // Valor Líquido
         ];
     }
 }

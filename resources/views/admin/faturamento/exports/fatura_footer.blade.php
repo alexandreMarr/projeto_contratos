@@ -85,7 +85,7 @@
             <tr>
                 <td class="footer-column footer-logo" style="width: 20%;">
                     <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('vendor/adminlte/dist/img/Rovema Bank/LOGO-VERTICAL.png'))) }}" alt="Rovema Bank">
-                    <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('vendor/adminlte/dist/img/Logo Eliq png/Eliq.png'))) }}" alt="Eliq" class="eliq-logo-footer">
+                    <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('vendor/adminlte/dist/img/Logo Eliq PNG/Eliq.png'))) }}" alt="Eliq" class="eliq-logo-footer">
                 </td>
                 
                 <td class="footer-column" style="width: 30%;">

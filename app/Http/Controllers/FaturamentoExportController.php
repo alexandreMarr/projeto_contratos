@@ -8,15 +8,13 @@ use App\Models\TransacaoFaturamento;
 use App\Models\ParametroCliente;
 use App\Models\ParametroGlobal;
 use App\Models\ParametroTaxaAliquota;
-use App\Exports\TransacoesExport; // Vamos criar este arquivo
+use App\Exports\TransacoesExport; 
 use Maatwebsite\Excel\Facades\Excel;
-//use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
 use App\Models\Fatura;
-use Illuminate\Support\Facades\Auth; // <<< ADICIONE ESTE
-use App\Jobs\GerarFaturaPdfJob; // <<< ADICIONE ESTE
-
+use Illuminate\Support\Facades\Auth;
+use App\Jobs\GerarFaturaPdfJob; 
 
 class FaturamentoExportController extends Controller
 {
@@ -36,8 +34,9 @@ class FaturamentoExportController extends Controller
         $dataInicio = Carbon::createFromFormat('Y-m', $request->periodo)->startOfMonth();
         $dataFim = $dataInicio->copy()->endOfMonth();
 
+        // Carrega o Estado para poder verificar a sigla (RO, SP, etc)
         $query = TransacaoFaturamento::with([
-                'credenciado', 
+                'credenciado.municipio.estado', // <<< Importante carregar isso
                 'produto', 
                 'empenho', 
                 'veiculo.grupo.grupoPai'
@@ -60,9 +59,7 @@ class FaturamentoExportController extends Controller
     private function getParametrosETaxas($billable_empresa_id)
     {
         $empresa = Empresa::with('organizacao', 'matriz.organizacao')->find($billable_empresa_id);
-        $paramGlobal = ParametroGlobal::first();
-
-        // Lógica de Parâmetros (simplificada de FaturamentoController)
+        
         $publico_ids = [1, 2, 3, 5];
         $is_publico = in_array($empresa->organizacao_id, $publico_ids);
         
@@ -77,7 +74,6 @@ class FaturamentoExportController extends Controller
             $parametrosAtivos['isento_ir'] = $paramCliente->isento_ir;
         }
 
-        // Lógica de Taxas
         $matriz = ($empresa->empresa_tipo_id == 2) ? $empresa->matriz : $empresa;
         $organizacao_id_para_taxa = $matriz ? $matriz->organizacao_id : null;
 
@@ -96,27 +92,27 @@ class FaturamentoExportController extends Controller
      */
     public function exportXLS(Request $request)
     {
+        
         $cliente_id = $request->input('cliente_id');
         $periodo = $request->input('periodo');
         $cliente = Empresa::find($cliente_id);
         
         $query = $this->buildTransacoesQuery($request);
-        extract($this->getParametrosETaxas($cliente_id)); // Pega $parametrosAtivos e $taxas
+        extract($this->getParametrosETaxas($cliente_id)); 
+        
+        $paramGlobal = ParametroGlobal::first(); // <-- Busca o parametro global
 
         $fileName = "transacoes_{$cliente->razao_social}_{$periodo}.xlsx";
 
-        return Excel::download(new TransacoesExport($query, $parametrosAtivos, $taxas), $fileName);
+        // Passa o $paramGlobal para o construtor do Export
+        return Excel::download(new TransacoesExport($query, $parametrosAtivos, $taxas, $paramGlobal), $fileName);
     }
 
     /**
-     * Exportar para PDF
-     */
-/**
-     * Exportar para PDF
+     * Exportar para PDF (Lista de Transações)
      */
     public function exportPDF(Request $request)
     {
-        // Aumenta o limite de tempo
         set_time_limit(300);
         ini_set('memory_limit', '2G');
 
@@ -125,17 +121,35 @@ class FaturamentoExportController extends Controller
         $cliente = Empresa::find($cliente_id);
 
         $query = $this->buildTransacoesQuery($request);
-        extract($this->getParametrosETaxas($cliente_id)); // Pega $parametrosAtivos e $taxas
+        extract($this->getParametrosETaxas($cliente_id)); 
+        
+        $paramGlobal = ParametroGlobal::first();
 
         // Processa os dados manualmente para o PDF
-        $transacoes = $query->get()->map(function($row) use ($parametrosAtivos, $taxas) {
+        $transacoes = $query->get()->map(function($row) use ($parametrosAtivos, $taxas, $paramGlobal) {
             $aliquota_ir = 0;
+            $valor_ir_calculado = 0; // Armazena numérico para conta
+            
             if (!$parametrosAtivos['isento_ir']) {
-                $categoriaId = optional($row->produto)->produto_categoria_id;
-                $taxa = $taxas->get($categoriaId);
-                $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                $deveCobrarIR = true;
+                if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                    $uf = optional(optional(optional($row->credenciado)->municipio)->estado)->sigla;
+                    if ($uf && $uf !== 'RO') {
+                        $deveCobrarIR = false;
+                    }
+                }
+
+                if ($deveCobrarIR) {
+                    $categoriaId = optional($row->produto)->produto_categoria_id;
+                    $taxa = $taxas->get($categoriaId);
+                    $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                    $valor_ir_calculado = $row->valor_total * $aliquota_ir;
+                }
             }
             
+            $valor_liquido = $row->valor_total - $valor_ir_calculado;
+
+            // Formatação para exibição
             $row->faturada_texto = $row->status_faturamento == 'pendente' ? 'Não' : 'Sim';
             $row->data_formatada = Carbon::parse($row->data_transacao)->format('d/m/Y H:i');
             $row->credenciado_nome = optional($row->credenciado)->razao_social ?? 'N/A';
@@ -144,94 +158,96 @@ class FaturamentoExportController extends Controller
             $row->produto_nome = optional($row->produto)->nome ?? 'N/A';
             $row->placa = optional($row->veiculo)->placa ?? 'N/A';
             $row->aliquota_formatada = number_format($aliquota_ir * 100, 2, ',', '.') . '%';
-            $row->valor_ir_calculado = 'R$ ' . number_format($row->valor_total * $aliquota_ir, 2, ',', '.');
+            
+            $row->valor_ir_calculado = 'R$ ' . number_format($valor_ir_calculado, 2, ',', '.');
             $row->valor_bruto = 'R$ ' . number_format($row->valor_total, 2, ',', '.');
+            
+            // NOVA COLUNA PARA O PDF
+            $row->valor_liquido = 'R$ ' . number_format($valor_liquido, 2, ',', '.');
             
             return $row;
         });
         
-        // Pega o ParametroGlobal para o rodapé
-        $paramGlobal = ParametroGlobal::first();
-
         $data = [
             'transacoes' => $transacoes,
             'cliente' => $cliente,
             'periodo' => Carbon::createFromFormat('Y-m', $periodo)->locale('pt_BR')->translatedFormat('F/Y'),
-            'paramGlobal' => $paramGlobal, // <<< ADICIONADO
+            'paramGlobal' => $paramGlobal, 
         ];
         
-        // --- INÍCIO DA MUDANÇA ---
-        
-        // Renderiza as views de header e footer
         $headerHtml = view('admin.faturamento.exports.transacoes_header', $data)->render();
         $footerHtml = view('admin.faturamento.exports.fatura_footer', $data)->render();
         
         $fileName = "transacoes_pdf_{$cliente->razao_social}_{$periodo}.pdf";
 
-        // Carrega a view principal e INJETA o header/footer
         $pdf = PDF::loadView('admin.faturamento.exports.transacoes_pdf', $data)
                   ->setPaper('a4', 'portrait')
                   ->setOption('enable-local-file-access', true)
                   ->setOption('enable-external-links', true)
-                  
-                  // Define as margens (em mm)
-                  ->setOption('margin-top', '35mm')     // Espaço para o header
-                  ->setOption('margin-bottom', '35mm')  // Espaço para o footer
-                  ->setOption('margin-left', '10mm')     // Zera as margens da página
-                  ->setOption('margin-right', '10mm')    // Zera as margens da página
-                  
-                  // Passa o HTML renderizado
+                  ->setOption('margin-top', '35mm')     
+                  ->setOption('margin-bottom', '35mm')  
+                  ->setOption('margin-left', '10mm')     
+                  ->setOption('margin-right', '10mm')    
                   ->setOption('header-html', $headerHtml)
                   ->setOption('footer-html', $footerHtml)
-                  
-                  // Zera o espaçamento do footer
                   ->setOption('header-spacing', 5)
                   ->setOption('footer-spacing', 5);
-        // --- FIM DA MUDANÇA ---
         
         return $pdf->stream($fileName);
     }
 
-public function exportFaturaPDF(Request $request, Fatura $fatura)
+    /**
+     * Exportar Fatura Individual (PDF)
+     */
+    public function exportFaturaPDF(Request $request, Fatura $fatura)
      {
-         // Aumenta o limite de tempo desta rota específica para 5 minutos (300 segundos)
          set_time_limit(300);
+         ini_set('memory_limit', '2G');
 
-         // <<<--- ADICIONE ESTA LINHA ---
-         ini_set('memory_limit', '2G'); // 2 Gigabytes
-
-         // 1. Carrega relações
+         // Carrega relações (importante carregar credenciado.municipio.estado dentro da transacao)
          $fatura->load([
              'cliente.municipio.estado', 
              'itens.transacao' => function($query) {
-                 $query->with(['credenciado', 'produto', 'veiculo.grupo.grupoPai']);
+                 $query->with(['credenciado.municipio.estado', 'produto', 'veiculo.grupo.grupoPai']); // <<< Ajustado
              },
              'descontos.usuario', 
              'pagamentos'
          ]);
 
-         // 2. Busca dados globais
          $paramGlobal = ParametroGlobal::first();
-         extract($this->getParametrosETaxas($fatura->cliente_id)); // Pega $parametrosAtivos e $taxas
+         extract($this->getParametrosETaxas($fatura->cliente_id)); 
          $totalDescontosManuais = $fatura->valor_descontos_manuais;
 
-         // 3. <<< OTIMIZAÇÃO: Pré-processa as transações aqui >>>
-         $transacoesProcessadas = $fatura->itens->map(function($item) use ($parametrosAtivos, $taxas) {
-             $tr = $item->transacao; // A transação já foi carregada
+         // Passamos $paramGlobal para o closure
+         $transacoesProcessadas = $fatura->itens->map(function($item) use ($parametrosAtivos, $taxas, $paramGlobal) {
+             $tr = $item->transacao; 
              $aliquota_ir = 0;
              $valor_ir_num = 0;
 
              if ($tr && !$parametrosAtivos['isento_ir']) {
-                 $categoriaId = optional($tr->produto)->produto_categoria_id;
-                 $taxa = $taxas->get($categoriaId);
-                 $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                 
+                 // <<<--- NOVA LÓGICA DE IR (Estado RO) ---
+                 $deveCobrarIR = true;
+                 if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                     // Verifica UF do credenciado da transação
+                     $uf = optional(optional(optional($tr->credenciado)->municipio)->estado)->sigla;
+                     if ($uf && $uf !== 'RO') {
+                         $deveCobrarIR = false;
+                     }
+                 }
+                 
+                 if ($deveCobrarIR) {
+                     $categoriaId = optional($tr->produto)->produto_categoria_id;
+                     $taxa = $taxas->get($categoriaId);
+                     $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                 }
+                 // --- FIM DA NOVA LÓGICA ---
              }
              
-             if ($tr) { // Calcula o valor do IR apenas se a transação existir
+             if ($tr) { 
                 $valor_ir_num = $item->valor_subtotal * $aliquota_ir;
              }
 
-             // Retorna um objeto simples SÓ com as strings prontas
              return (object) [
                  'id' => $tr->id ?? $item->id,
                  'data' => $tr ? $tr->data_transacao->format('d/m/y H:i') : 'N/A',
@@ -245,9 +261,7 @@ public function exportFaturaPDF(Request $request, Fatura $fatura)
                  'valor_ir' => number_format($valor_ir_num, 2, ',', '.'),
              ];
          });
-         // --- Fim da Otimização ---
 
-         // 4. Prepara os dados para TODAS as views
          $data = [
              'fatura' => $fatura,
              'paramGlobal' => $paramGlobal,
@@ -255,52 +269,24 @@ public function exportFaturaPDF(Request $request, Fatura $fatura)
              'transacoes' => $transacoesProcessadas, 
          ];
 
-         // --- INÍCIO DA GRANDE MUDANÇA ---
-
-         // 5. Renderiza as views de header e footer para strings HTML
-         // (Certifique-se que os caminhos estão corretos)
          $headerHtml = view('admin.faturamento.exports.fatura_header', $data)->render();
          $footerHtml = view('admin.faturamento.exports.fatura_footer', $data)->render();
         
          $fileName = "fatura_{$fatura->numero_fatura}_{$fatura->cliente->razao_social}.pdf";
 
-         // 6. Carrega a view principal e INJETA o header/footer via setOption
          $pdf = PDF::loadView('admin.faturamento.exports.fatura_pdf', $data)
                    ->setPaper('a4', 'portrait')
-                   ->setOption('enable-local-file-access', true) // Permite carregar imagens locais
+                   ->setOption('enable-local-file-access', true) 
                    ->setOption('enable-external-links', true)
-                   
-                   // Define as margens (em mm) para acomodar o header/footer
-                   ->setOption('margin-top', '35mm')     // Espaço para o header (aprox 120px)
-                   ->setOption('margin-bottom', '35mm')  // Espaço para o footer
-
-                   ->setOption('margin-left', '10mm')    // Margem da página (aprox 40px)
-                   ->setOption('margin-right', '10mm')   // Margem da página (aprox 40px)
-                   
-                   // Passa o HTML renderizado para o wkhtmltopdf
+                   ->setOption('margin-top', '35mm')     
+                   ->setOption('margin-bottom', '35mm')  
+                   ->setOption('margin-left', '10mm')    
+                   ->setOption('margin-right', '10mm')   
                    ->setOption('header-html', $headerHtml)
                    ->setOption('footer-html', $footerHtml)
-                   
-                   // (Opcional) Define o espaçamento entre o conteúdo e o header/footer
-                   ->setOption('header-spacing', 5) // 5mm de espaço
-                   ->setOption('footer-spacing', 5); // 5mm de espaço
-        // --- FIM DA GRANDE MUDANÇA ---
+                   ->setOption('header-spacing', 5) 
+                   ->setOption('footer-spacing', 5); 
         
          return $pdf->stream($fileName);
      }
-
-    // public function exportFaturaPDF(Request $request, Fatura $fatura)
-    // {
-    //     // 1. Pega o usuário logado
-    //     $user = Auth::user();
-
-    //     // 2. Dispara o Job para a fila
-    //     GerarFaturaPdfJob::dispatch($fatura, $user);
-
-    //     // 3. Retorna uma resposta imediata para o JavaScript
-    //     return response()->json([
-    //         'success' => true, 
-    //         'message' => 'Sua fatura está sendo gerada. Você será notificado no "sininho" quando estiver pronta.'
-    //     ]);
-    // }
 }

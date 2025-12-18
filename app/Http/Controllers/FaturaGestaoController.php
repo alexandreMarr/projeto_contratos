@@ -60,9 +60,13 @@ class FaturaGestaoController extends Controller
 
         $totalDescontoManual = $fatura->valor_descontos_manuais; 
 
-        $fatura->valor_liquido = $fatura->valor_total 
-                               - $fatura->valor_descontos 
-                               - $totalDescontoManual;
+        $subtotal = $fatura->valor_total 
+                        - $fatura->valor_descontos 
+                        + $fatura->taxa_adm_valor;
+        
+        // 2. Subtrai o desconto manual desse subtotal
+        // Isso atende ao pedido de "deduzir do líquido (pré-desconto)" e não do bruto
+        $fatura->valor_liquido = round($subtotal - $totalDescontoManual, 2);
 
         $totalPago = $fatura->pagamentos->sum('valor_pago');
         $novoSaldoReal = round($fatura->valor_liquido - $totalPago, 2);

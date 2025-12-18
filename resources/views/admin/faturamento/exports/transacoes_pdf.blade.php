@@ -105,6 +105,7 @@
                     <th class="text-right">Vl. Bruto</th>
                     <th class="text-right">Alíquota IR</th>
                     <th class="text-right">Valor IR</th>
+                    <th class="text-right">Valor Líquido (R$)</th>
                 </tr>
             </thead>
             <tbody>
@@ -121,6 +122,7 @@
                     <td class="text-right">{{ $row->valor_bruto }}</td>
                     <td class="text-right">{{ $row->aliquota_formatada }}</td>
                     <td class="text-right">{{ $row->valor_ir_calculado }}</td>
+                    <td class="text-right">{{ $row->valor_liquido }}</td>
                 </tr>
                 @empty
                 <tr>

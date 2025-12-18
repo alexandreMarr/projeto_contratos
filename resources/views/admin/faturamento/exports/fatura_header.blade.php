@@ -35,7 +35,7 @@
                                 <img src="{{ public_path('vendor/adminlte/dist/img/Rovema Bank/LOGO-VERTICAL.png') }}" alt="Rovema Bank" style="width: 80px;">
                             </td>
                             <td style="vertical-align: middle;">
-                                <img src="{{ public_path('vendor/adminlte/dist/img/Logo Eliq png/Eliq.png') }}" alt="Eliq" style="width: 60px;">
+                                <img src="{{ public_path('vendor/adminlte/dist/img/Logo Eliq PNG/Eliq.png') }}" alt="Eliq" style="width: 60px;">
                             </td>
                         </tr>
                     </table>

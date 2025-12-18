@@ -33,6 +33,7 @@ class ParametroGlobal extends Model
         'chave_pix',
         'cnpj',
         'razao_social',
+        'cobrar_ir_fora_do_estado_rondonia'
 
     ];
 
@@ -43,6 +44,7 @@ class ParametroGlobal extends Model
      */
     protected $casts = [
         'descontar_ir_fatura' => 'boolean',
+        'cobrar_ir_fora_do_estado_rondonia' => 'boolean',
     ];
 
     /**
@@ -61,6 +63,7 @@ class ParametroGlobal extends Model
                 'chave_pix',
                 'cnpj',
                 'razao_social',
+                'cobrar_ir_fora_do_estado_rondonia',
             ])
             ->useLogName('Parâmetro Global')
             ->logOnlyDirty()

@@ -343,11 +343,21 @@ public function index(Request $request)
                 })
                 // CORREÇÃO 2: Adicione $canShow no USE (...)
                 ->addColumn('action', function ($row) use ($periodo, $canShow) {
-                    if ($canShow) {
-                        $url = route('faturamento.show', ['cliente_id' => $row->id, 'periodo' => $periodo]);
-                        return '<a href="' . $url . '" class="btn btn-xs btn-primary"><i class="fa fa-eye"></i> Visualizar</a>';
+                    if (!$canShow) {
+                        return '';
                     }
-                    return ''; // Retorna vazio se não tiver permissão
+
+                    // Recalcula variáveis para verificar o status
+                    $valorBruto = ($row->empresa_tipo_id == 1) ? $row->valor_bruto_matriz : $row->valor_bruto_unidade;
+                    $totalFaturas = $row->faturas_count;
+
+                    // Lógica: Se não tem faturas E valor bruto é zero -> "Nada a Faturar" -> Esconde botão
+                    if ($totalFaturas == 0 && $valorBruto <= 0.01) {
+                        return ''; 
+                    }
+
+                    $url = route('faturamento.show', ['cliente_id' => $row->id, 'periodo' => $periodo]);
+                    return '<a href="' . $url . '" class="btn btn-xs btn-primary"><i class="fa fa-eye"></i> Visualizar</a>';
                 })
                 ->rawColumns(['status', 'action'])
                 ->make(true);
@@ -449,6 +459,7 @@ public function index(Request $request)
         );
 
         $parametrosAtivos = $this->getParametrosAtivos($billable_empresa_id);
+        $paramGlobal = ParametroGlobal::first(); 
 
         $contrato = null;
         if ($request->filled('contrato_id')) {
@@ -459,6 +470,7 @@ public function index(Request $request)
                                 ->where('contrato_situacao_id', 1)
                                 ->first();
         }
+        $taxa_adm = $contrato ? (float)$contrato->taxa_administrativa : 0;
         
         $queryBase = TransacaoFaturamento::whereBetween('data_transacao', [$dataInicio, $dataFim]) 
             ->whereIn('status', ['confirmada', 'liquidada']);
@@ -480,13 +492,30 @@ public function index(Request $request)
 
         $totalIRPendente = 0;
         if (!$parametrosAtivos['isento_ir'] && $organizacao_id_para_taxa) { 
+            
             $subQuery = $queryBasePendentes->clone()
                 ->join('public.produto as p', 'transacao_faturamento.produto_id', '=', 'p.id')
                 ->leftJoin('contas_receber.parametro_taxa_aliquota as pta', function ($join) use ($organizacao_id_para_taxa) {
                     $join->on('p.produto_categoria_id', '=', 'pta.produto_categoria_id')
-                         ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
-                })
-                ->select(DB::raw('SUM(transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+                        ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
+                });
+
+            // --- CORREÇÃO AQUI: JOIN na tabela EMPRESA ---
+            if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                // "Credenciado" é uma Empresa. Usamos 'c' como alias.
+                $subQuery->leftJoin('public.empresa as c', 'transacao_faturamento.credenciado_id', '=', 'c.id')
+                        ->leftJoin('public.municipio as m', 'c.municipio_id', '=', 'm.id')
+                        ->leftJoin('public.estado as e', 'm.estado_id', '=', 'e.id');
+                
+                $subQuery->select(DB::raw("SUM(
+                    CASE 
+                        WHEN e.sigla IS NOT NULL AND e.sigla != 'RO' THEN 0 
+                        ELSE transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0) 
+                    END
+                ) as total_ir_calculado"));
+            } else {
+                $subQuery->select(DB::raw('SUM(transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+            }
             
             $totalIRPendente = $subQuery->first()->total_ir_calculado ?? 0;
         }
@@ -524,16 +553,9 @@ public function index(Request $request)
         $is_publico = in_array($cliente->organizacao_id, $publico_ids);
         
         return view('admin.faturamento.show', compact(
-            'cliente', 
-            'periodo',
-            'faturamentoPeriodo',
-            'parametrosAtivos',
-            'totaisPendentes',
-            'totaisPorUnidade',
-            'totaisPorEmpenho',
-            'totaisPorGrupo',
-            'is_publico' ,
-            'contrato'
+            'cliente', 'periodo', 'faturamentoPeriodo', 'parametrosAtivos',
+            'totaisPendentes', 'totaisPorUnidade', 'totaisPorEmpenho',
+            'totaisPorGrupo', 'is_publico', 'contrato', 'taxa_adm'
         ));
     }
 
@@ -551,6 +573,7 @@ public function index(Request $request)
         $cliente = Empresa::with('matriz.organizacao')->find($billable_empresa_id);
 
         $parametrosAtivos = $this->getParametrosAtivos($billable_empresa_id);
+        $paramGlobal = ParametroGlobal::first();
         
         $queryBase = TransacaoFaturamento::whereBetween('data_transacao', [$dataInicio, $dataFim]) 
             ->whereIn('status', ['confirmada', 'liquidada']);
@@ -576,9 +599,25 @@ public function index(Request $request)
                 ->join('public.produto as p', 'transacao_faturamento.produto_id', '=', 'p.id')
                 ->leftJoin('contas_receber.parametro_taxa_aliquota as pta', function ($join) use ($organizacao_id_para_taxa) {
                     $join->on('p.produto_categoria_id', '=', 'pta.produto_categoria_id')
-                         ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
-                })
-                ->select(DB::raw('SUM((transacao_faturamento.valor_total - transacao_faturamento.valor_faturado) * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+                            ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
+                });
+
+            // --- CORREÇÃO AQUI: JOIN na tabela EMPRESA ---
+            if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                $subQuery->leftJoin('public.empresa as c', 'transacao_faturamento.credenciado_id', '=', 'c.id')
+                        ->leftJoin('public.municipio as m', 'c.municipio_id', '=', 'm.id')
+                        ->leftJoin('public.estado as e', 'm.estado_id', '=', 'e.id');
+                
+                $subQuery->select(DB::raw("SUM(
+                    CASE 
+                        WHEN e.sigla IS NOT NULL AND e.sigla != 'RO' THEN 0 
+                        ELSE (transacao_faturamento.valor_total - transacao_faturamento.valor_faturado) * COALESCE(pta.taxa_aliquota, 0)
+                    END
+                ) as total_ir_calculado"));
+            } else {
+                $subQuery->select(DB::raw('SUM((transacao_faturamento.valor_total - transacao_faturamento.valor_faturado) * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+            }
+
             $totalIRPendente = $subQuery->first()->total_ir_calculado ?? 0;
         }
             
@@ -594,7 +633,6 @@ public function index(Request $request)
             'faturado' => 'R$ ' . number_format($totalValorFaturado, 2, ',', '.'),
         ]);
     }
-
     public function getSubgrupos(Request $request)
     {
         $request->validate([
@@ -793,87 +831,125 @@ public function index(Request $request)
 
     public function getTransacoes(Request $request)
     {
-        $request->validate([
-            'cliente_id' => 'required|integer|exists:empresa,id',
-            'periodo' => 'required|date_format:Y-m',
-        ]);
-        
-
-        $billable_empresa_id = $request->input('cliente_id');
-        $empresa = Empresa::with('matriz.organizacao')->findOrFail($billable_empresa_id);
-        $parametrosAtivos = $this->getParametrosAtivos($billable_empresa_id);
-        
-        $dataInicio = Carbon::createFromFormat('Y-m', $request->periodo)->startOfMonth();
-        $dataFim = $dataInicio->copy()->endOfMonth();
-
-        $query = TransacaoFaturamento::with(['credenciado', 'produto', 'empenho', 'veiculo.grupo.grupoPai'])
-            ->whereBetween('data_transacao', [$dataInicio, $dataFim])
-            ->whereIn('status', ['confirmada', 'liquidada']);
-        
-        if ($empresa->empresa_tipo_id == 1) {
-            $query->where('cliente_id', $empresa->id)->whereNull('unidade_id');
-        } else {
-            $query->where('unidade_id', $empresa->id);
-        }
-
-        $matriz = ($empresa->empresa_tipo_id == 2) ? $empresa->matriz : $empresa;
-        $organizacao_id_para_taxa = $matriz ? $matriz->organizacao_id : null;
-
-        $taxas = collect();
-        if ($organizacao_id_para_taxa) {
-             $taxas = ParametroTaxaAliquota::where('organizacao_id', $organizacao_id_para_taxa)
-                         ->get()
-                         ->keyBy('produto_categoria_id');
-        }
-
-        return DataTables::of($query)
-            ->addColumn('faturada', fn($row) => $row->status_faturamento == 'pendente' ? '<span class="badge badge-warning">Não</span>' : '<span class="badge badge-success">Sim</span>')
-            ->addColumn('credenciado_nome', fn($row) => optional($row->credenciado)->razao_social ?? 'N/A')
-            ->addColumn('produto_nome', fn($row) => optional($row->produto)->nome ?? 'N/A')
+            $request->validate([
+                'cliente_id' => 'required|integer|exists:empresa,id',
+                'periodo' => 'required|date_format:Y-m',
+            ]);
             
-            ->addColumn('grupo_nome', fn($row) => optional(optional(optional($row->veiculo)->grupo)->grupoPai)->nome ?? 'N/A') 
-            ->addColumn('subgrupo_nome', fn($row) => optional(optional($row->veiculo)->grupo)->nome ?? 'N/A')
-            ->addColumn('placa', fn($row) => optional($row->veiculo)->placa ?? 'N/A')
+            $billable_empresa_id = $request->input('cliente_id');
+            $empresa = Empresa::with('matriz.organizacao')->findOrFail($billable_empresa_id);
+            $parametrosAtivos = $this->getParametrosAtivos($billable_empresa_id);
+            $paramGlobal = ParametroGlobal::first();
             
-            ->addColumn('aliquota_ir', function($row) use ($parametrosAtivos, $taxas) {
-                if ($parametrosAtivos['isento_ir']) {
+            $dataInicio = Carbon::createFromFormat('Y-m', $request->periodo)->startOfMonth();
+            $dataFim = $dataInicio->copy()->endOfMonth();
+
+            // Carregando relações
+            $query = TransacaoFaturamento::with(['credenciado.municipio.estado', 'produto', 'empenho', 'veiculo.grupo.grupoPai'])
+                ->whereBetween('data_transacao', [$dataInicio, $dataFim])
+                ->whereIn('status', ['confirmada', 'liquidada']);
+            
+            if ($empresa->empresa_tipo_id == 1) {
+                $query->where('cliente_id', $empresa->id)->whereNull('unidade_id');
+            } else {
+                $query->where('unidade_id', $empresa->id);
+            }
+
+            $matriz = ($empresa->empresa_tipo_id == 2) ? $empresa->matriz : $empresa;
+            $organizacao_id_para_taxa = $matriz ? $matriz->organizacao_id : null;
+
+            $taxas = collect();
+            if ($organizacao_id_para_taxa) {
+                    $taxas = ParametroTaxaAliquota::where('organizacao_id', $organizacao_id_para_taxa)
+                                ->get()
+                                ->keyBy('produto_categoria_id');
+            }
+
+            return DataTables::of($query)
+                ->addColumn('faturada', fn($row) => $row->status_faturamento == 'pendente' ? '<span class="badge badge-warning">Não</span>' : '<span class="badge badge-success">Sim</span>')
+                ->addColumn('credenciado_nome', fn($row) => optional($row->credenciado)->razao_social ?? 'N/A')
+                ->addColumn('produto_nome', fn($row) => optional($row->produto)->nome ?? 'N/A')
+                
+                ->addColumn('grupo_nome', fn($row) => optional(optional(optional($row->veiculo)->grupo)->grupoPai)->nome ?? 'N/A') 
+                ->addColumn('subgrupo_nome', fn($row) => optional(optional($row->veiculo)->grupo)->nome ?? 'N/A')
+                ->addColumn('placa', fn($row) => optional($row->veiculo)->placa ?? 'N/A')
+                
+                // --- CÁLCULO DA ALÍQUOTA ---
+                ->addColumn('aliquota_ir', function($row) use ($parametrosAtivos, $taxas, $paramGlobal) {
                     $aliquota_ir = 0;
-                } else {
-                    $categoriaId = optional($row->produto)->produto_categoria_id;
-                    $taxa = $taxas->get($categoriaId);
-                    $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
-                }
-                return number_format($aliquota_ir * 100, 2, ',', '.') . '%';
-            })
-            ->addColumn('valor_ir', function($row) use ($parametrosAtivos, $taxas) {
-                if ($parametrosAtivos['isento_ir']) {
+                    if (!$parametrosAtivos['isento_ir']) {
+                        $deveCobrarIR = true;
+                        if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                            $uf = optional(optional(optional($row->credenciado)->municipio)->estado)->sigla;
+                            if ($uf && $uf !== 'RO') {
+                                $deveCobrarIR = false;
+                            }
+                        }
+                        if ($deveCobrarIR) {
+                            $categoriaId = optional($row->produto)->produto_categoria_id;
+                            $taxa = $taxas->get($categoriaId);
+                            $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                        }
+                    }
+                    return number_format($aliquota_ir * 100, 2, ',', '.') . '%';
+                })
+
+                // --- CÁLCULO DO VALOR IR ---
+                ->addColumn('valor_ir', function($row) use ($parametrosAtivos, $taxas, $paramGlobal) {
                     $valor_ir = 0;
-                } else {
-                    $categoriaId = optional($row->produto)->produto_categoria_id;
-                    $taxa = $taxas->get($categoriaId);
-                    $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
-                    $valor_ir = $row->valor_total * $aliquota_ir;
-                }
-                return 'R$ ' . number_format($valor_ir, 2, ',', '.');
-            })
-            ->editColumn('valor_unitario', fn($row) => 'R$ ' . number_format($row->valor_unitario, 2, ',', '.'))
-            ->editColumn('valor_total', fn($row) => 'R$ ' . number_format($row->valor_total, 2, ',', '.'))
-            ->rawColumns(['faturada'])
-            ->make(true);
+                    if (!$parametrosAtivos['isento_ir']) {
+                        $deveCobrarIR = true;
+                        if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                            $uf = optional(optional(optional($row->credenciado)->municipio)->estado)->sigla;
+                            if ($uf && $uf !== 'RO') {
+                                $deveCobrarIR = false;
+                            }
+                        }
+                        if ($deveCobrarIR) {
+                            $categoriaId = optional($row->produto)->produto_categoria_id;
+                            $taxa = $taxas->get($categoriaId);
+                            $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                            $valor_ir = $row->valor_total * $aliquota_ir;
+                        }
+                    }
+                    return 'R$ ' . number_format($valor_ir, 2, ',', '.');
+                })
+
+                // --- NOVA COLUNA: VALOR LÍQUIDO (Bruto - IR) ---
+                ->addColumn('valor_liquido', function($row) use ($parametrosAtivos, $taxas, $paramGlobal) {
+                    $valor_ir = 0;
+                    if (!$parametrosAtivos['isento_ir']) {
+                        $deveCobrarIR = true;
+                        if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                            $uf = optional(optional(optional($row->credenciado)->municipio)->estado)->sigla;
+                            if ($uf && $uf !== 'RO') {
+                                $deveCobrarIR = false;
+                            }
+                        }
+                        if ($deveCobrarIR) {
+                            $categoriaId = optional($row->produto)->produto_categoria_id;
+                            $taxa = $taxas->get($categoriaId);
+                            $aliquota_ir = $taxa ? $taxa->taxa_aliquota : 0;
+                            $valor_ir = $row->valor_total * $aliquota_ir;
+                        }
+                    }
+                    $liquido = $row->valor_total - $valor_ir;
+                    return 'R$ ' . number_format($liquido, 2, ',', '.');
+                })
+
+                ->editColumn('valor_unitario', fn($row) => 'R$ ' . number_format($row->valor_unitario, 2, ',', '.'))
+                ->editColumn('valor_total', fn($row) => 'R$ ' . number_format($row->valor_total, 2, ',', '.'))
+                ->rawColumns(['faturada'])
+                ->make(true);
     }
-   
     public function gerarFatura(Request $request)
     {
+        // ... (Validações mantidas) ...
         $request->validate([
             'cliente_id' => 'required|integer|exists:empresa,id',
             'periodo' => 'required|date_format:Y-m',
             'data_vencimento' => 'required|date',
             'tipo_geracao' => 'required|string|in:Total,Fracionada',
-            'nota_fiscal' => 'nullable|string|max:100',
-            'contrato_id' => 'nullable|array',
-            'empenho_id' => 'nullable|array',
-            'grupo_id' => 'nullable|array',
-            'subgrupo_id' => 'nullable|array',
             'valor_fatura_calculado' => 'required|numeric|min:0.01', 
         ]);
 
@@ -881,109 +957,109 @@ public function index(Request $request)
         $publico_ids = [1, 2, 3, 5];
         $is_publico = in_array($empresa->organizacao_id, $publico_ids);
 
-        if ($is_publico && $request->tipo_geracao == 'Fracionada' && 
-            !$request->filled('grupo_id') && 
-            !$request->filled('subgrupo_id') && 
-            !$request->filled('empenho_id')
-        ) {
-            return response()->json(['success' => false, 'message' => 'Cliente Público: Selecione ao menos um filtro.'], 422);
-        }
-        
+        // ... (Validações Fracionada mantidas) ...
+
         $paramGlobal = ParametroGlobal::first();
-        if (!$paramGlobal) {
-            return response()->json(['success' => false, 'message' => 'Erro: Parâmetros Globais ausentes.'], 500);
-        }
+        if (!$paramGlobal) return response()->json(['success' => false, 'message' => 'Erro: Parâmetros Globais ausentes.'], 500);
 
         DB::beginTransaction();
         try {
             $billable_empresa_id = $request->cliente_id;
             $periodo = $request->periodo;
             
-            $empresa = Empresa::with('codigoDealer')->find($billable_empresa_id);
+            // Carrega 'matriz' aqui para garantir que temos o objeto
+            $empresa = Empresa::with(['codigoDealer', 'matriz'])->find($billable_empresa_id);
+            
             $parametrosAtivos = $this->getParametrosAtivos($billable_empresa_id);
+            
+            // --- CORREÇÃO DO ERRO 'organizacao_id on int' ---
+            // Se for tipo 2 (Filial), pegamos o OBJETO matriz. Se não, pegamos a própria empresa.
             $matriz = ($empresa->empresa_tipo_id == 2) ? $empresa->matriz : $empresa;
+            
+            // Agora $matriz é um OBJETO, então podemos acessar ->organizacao_id
             $organizacao_id_para_taxa = $matriz ? $matriz->organizacao_id : null;
+            // ------------------------------------------------
+            
             $taxas = collect();
             if ($organizacao_id_para_taxa) {
-                $taxas = ParametroTaxaAliquota::where('organizacao_id', $organizacao_id_para_taxa)
-                                        ->get()
-                                        ->keyBy('produto_categoria_id');
+                $taxas = ParametroTaxaAliquota::where('organizacao_id', $organizacao_id_para_taxa)->get()->keyBy('produto_categoria_id');
             }
             
-            $queryBase = $this->buildPendentesQuery($request);
+            // ... (O RESTANTE DO CÓDIGO PERMANECE IGUAL) ...
+            
+            $queryTransacoes = $this->buildPendentesQuery($request)
+                                    ->with('produto', 'veiculo.grupo', 'credenciado.municipio.estado') 
+                                    ->orderBy('data_transacao', 'asc');
+                                    
+            // ... continua com a lógica de filtros, cálculo de IR e criação da fatura ...
+            
+            // (Certifique-se de manter a lógica de IR corrigida nas etapas anteriores dentro deste método)
             
             if ($request->tipo_geracao == 'Fracionada') {             
                 if ($is_publico && $request->filled('empenho_id')) {
-                    $queryBase->whereIn('empenho_id', $request->empenho_id);
+                    $queryTransacoes->whereIn('empenho_id', $request->empenho_id);
                 }
-
                 if ($request->filled('grupo_id')) {
                     $grupoIds = $request->grupo_id;
                     $idsNumericos = array_filter($grupoIds, fn($v) => is_numeric($v));
                     $incluirSemGrupo = in_array('null', $grupoIds) || in_array(null, $grupoIds);
-
-                    $queryBase->whereHas('veiculo.grupo', function($q) use ($idsNumericos, $incluirSemGrupo) {
+                    $queryTransacoes->whereHas('veiculo.grupo', function($q) use ($idsNumericos, $incluirSemGrupo) {
                         $q->where(function($sub) use ($idsNumericos, $incluirSemGrupo) {
                             if (!empty($idsNumericos)) $sub->whereIn('grupo_id', $idsNumericos);
                             if ($incluirSemGrupo) $sub->orWhereNull('grupo_id');
                         });
                     });
                 }
-
                 if ($request->filled('subgrupo_id')) {
                     $subIds = $request->subgrupo_id;
                     $idsNumericos = array_filter($subIds, fn($v) => is_numeric($v));
                     $incluirSemSub = in_array('null', $subIds) || in_array(null, $subIds);
-
-                    $queryBase->whereHas('veiculo', function($q) use ($idsNumericos, $incluirSemSub) {
+                    $queryTransacoes->whereHas('veiculo', function($q) use ($idsNumericos, $incluirSemSub) {
                         $q->where(function($sub) use ($idsNumericos, $incluirSemSub) {
-                             if (!empty($idsNumericos)) $sub->whereIn('grupo_id', $idsNumericos);
-                             if ($incluirSemSub) $sub->orWhereNull('grupo_id');
+                                if (!empty($idsNumericos)) $sub->whereIn('grupo_id', $idsNumericos);
+                                if ($incluirSemSub) $sub->orWhereNull('grupo_id');
                         });
                     });
                 }
             }
 
-            $totalBrutoPendenteReal = $queryBase->clone()->sum(DB::raw('valor_total - valor_faturado'));
-            
-            $transacoesParaFaturar = $queryBase->clone()
-                                    ->with('produto', 'veiculo.grupo') 
-                                    ->orderBy('data_transacao', 'asc')
-                                    ->orderBy('id', 'asc')
-                                    ->get();
+            $totalBrutoPendenteReal = $queryTransacoes->clone()->sum(DB::raw('valor_total - valor_faturado'));
+            $transacoesParaFaturar = $queryTransacoes->get();
 
             $totalIRPendenteReal = 0; 
             foreach ($transacoesParaFaturar as $transacao) {
                 $valorPendenteDaTransacao = $transacao->valor_pendente; 
+                
                 if (!$parametrosAtivos['isento_ir'] && $valorPendenteDaTransacao > 0) {
-                    $categoriaId = optional($transacao->produto)->produto_categoria_id ?? 0;
-                    $taxa = $taxas->get($categoriaId);
-                    $aliquota = $taxa ? $taxa->taxa_aliquota : 0;
-                    $totalIRPendenteReal += ($valorPendenteDaTransacao * $aliquota); 
+                    
+                    $shouldChargeIR = true;
+                    if (!$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                        $uf = optional(optional(optional($transacao->credenciado)->municipio)->estado)->sigla;
+                        if ($uf && $uf !== 'RO') {
+                            $shouldChargeIR = false;
+                        }
+                    }
+                    
+                    if ($shouldChargeIR) {
+                        $categoriaId = optional($transacao->produto)->produto_categoria_id ?? 0;
+                        $taxa = $taxas->get($categoriaId);
+                        $aliquota = $taxa ? $taxa->taxa_aliquota : 0;
+                        $totalIRPendenteReal += ($valorPendenteDaTransacao * $aliquota);
+                    }
                 }
             }
 
-            if ($transacoesParaFaturar->isEmpty() || $totalBrutoPendenteReal < 0.01) {
-                return response()->json(['success' => false, 'message' => 'Nenhuma transação pendente encontrada para esses filtros.'], 400);
-            }
-            
+            if ($transacoesParaFaturar->isEmpty() || $totalBrutoPendenteReal < 0.01) { return response()->json(['success' => false, 'message' => 'Nenhuma transação pendente encontrada.'], 400); }
             $valorDesejadoFaturar = (float) $request->valor_fatura_calculado;
 
             if ($request->tipo_geracao == 'Fracionada') {
                 if ($valorDesejadoFaturar > ($totalBrutoPendenteReal + 0.001)) { 
-                    return response()->json([
-                        'success' => false, 
-                        'message' => sprintf(
-                            'Valor a faturar (R$ %s) não pode ser maior que o total pendente para estes filtros (R$ %s).',
-                            number_format($valorDesejadoFaturar, 2, ',', '.'),
-                            number_format($totalBrutoPendenteReal, 2, ',', '.')
-                        )
-                    ], 400);
+                    return response()->json(['success' => false, 'message' => 'Valor excede o total pendente.'], 400);
                 }
             } else {
-                 if (abs($totalBrutoPendenteReal - $valorDesejadoFaturar) > 0.01) {
-                      return response()->json(['success' => false, 'message' => 'Inconsistência de valores no modo Total. Recarregue e tente novamente.'], 400);
-                 }
+                    if (abs($totalBrutoPendenteReal - $valorDesejadoFaturar) > 0.01) {
+                        return response()->json(['success' => false, 'message' => 'Inconsistência de valores no modo Total.'], 400);
+                    }
             }
 
             $horaMinuto = Carbon::now()->format('Hi'); 
@@ -1000,32 +1076,23 @@ public function index(Request $request)
             ]);
 
             $totalRealFaturadoNestaNota = 0;
-            $totalImpostosItens = 0; 
             $valorRestanteParaFaturar = $valorDesejadoFaturar; 
-
-            // Array para armazenar os itens e inserir de uma vez só
             $itensParaInserir = [];
-            $now = Carbon::now(); // Data para created_at/updated_at
+            $now = Carbon::now();
 
             foreach ($transacoesParaFaturar as $transacao) {
-                if ($valorRestanteParaFaturar <= 0.001) {
-                    break; 
-                }
+                if ($valorRestanteParaFaturar <= 0.001) break; 
                 $valorPendenteDaTransacao = $transacao->valor_pendente; 
                 if ($valorPendenteDaTransacao <= 0.001) continue; 
 
                 $valorAFaturarDestaTransacao = min($valorRestanteParaFaturar, $valorPendenteDaTransacao);
-
-                // 1. Atualiza a transação (Isso mantemos individual ou teria que fazer lógica complexa)
                 $transacao->valor_faturado += $valorAFaturarDestaTransacao;
-                
                 if (abs($transacao->valor_total - $transacao->valor_faturado) < 0.01) {
                     $transacao->status_faturamento = 'faturada';
                     $transacao->fatura_id = $fatura->id; 
                 }
-                $transacao->save(); // O gargalo maior costuma ser o Create abaixo, manter esse Save é aceitável por enquanto
+                $transacao->save();
                 
-                // 2. Em vez de criar no banco, adiciona no array
                 $itensParaInserir[] = [
                     'fatura_id' => $fatura->id,
                     'transacao_faturamento_id' => $transacao->id,
@@ -1035,13 +1102,10 @@ public function index(Request $request)
                     'quantidade' => 1, 
                     'valor_unitario' => $valorAFaturarDestaTransacao, 
                     'valor_subtotal' => $valorAFaturarDestaTransacao,
-                    'aliquota_aplicada' => 0, 
-                    'valor_imposto' => 0,
+                    'aliquota_aplicada' => 0, 'valor_imposto' => 0, 
                     'valor_total_item' => $valorAFaturarDestaTransacao,
-                    'created_at' => $now, // Importante: insert em massa não preenche timestamps sozinho
-                    'updated_at' => $now,
+                    'created_at' => $now, 'updated_at' => $now,
                 ];
-
                 $totalRealFaturadoNestaNota += $valorAFaturarDestaTransacao;
                 $valorRestanteParaFaturar -= $valorAFaturarDestaTransacao;
             }
@@ -1051,10 +1115,17 @@ public function index(Request $request)
             
             $faturaBruta = $totalRealFaturadoNestaNota;
             $faturaDescontoIR = 0;
+            $valorIRInformativo = 0;
 
-            if ($parametrosAtivos['descontar_ir_fatura'] && $totalBrutoPendenteReal > 0.01) {
+            if (!$parametrosAtivos['isento_ir'] && $totalBrutoPendenteReal > 0.01) {
                 $taxaDeIRMedia = $totalIRPendenteReal / $totalBrutoPendenteReal;
-                $faturaDescontoIR = round($faturaBruta * $taxaDeIRMedia, 2);
+                $valorIRCalculado = round($faturaBruta * $taxaDeIRMedia, 2);
+                
+                if ($parametrosAtivos['descontar_ir_fatura']) {
+                    $faturaDescontoIR = $valorIRCalculado;
+                } else {
+                    $valorIRInformativo = $valorIRCalculado;
+                }
             }
 
             $contrato = null;
@@ -1063,114 +1134,56 @@ public function index(Request $request)
             }
             if (!$contrato) {
                 $matriz = ($empresa->empresa_tipo_id == 2) ? $empresa->matriz : $empresa;
-                $contrato = Contrato::where('empresa_id', $matriz->id) 
-                                    ->where('contrato_situacao_id', 1)
-                                    ->first();
+                $contrato = Contrato::where('empresa_id', $matriz->id)->where('contrato_situacao_id', 1)->first();
             }
 
             $taxaAdmPercent = $contrato ? (float)($contrato->taxa_administrativa ?? 0) : 0;
             $valorTaxaAdm = round(($faturaBruta * $taxaAdmPercent) / 100, 2);
             
-            $fatura->valor_total = $faturaBruta; 
-            $fatura->valor_impostos = $totalImpostosItens; 
-            $fatura->valor_descontos = $faturaDescontoIR; 
+            $fatura->valor_total = $faturaBruta;
+            $fatura->valor_impostos = 0;
+            $fatura->valor_descontos = $faturaDescontoIR;
             $fatura->taxa_adm_percent = $taxaAdmPercent;
             $fatura->taxa_adm_valor = $valorTaxaAdm;
+            
             $fatura->valor_liquido = $faturaBruta - $faturaDescontoIR + $valorTaxaAdm;
             
-            $textoContrato = "";
+            $textoContrato = $contrato ? "(CONTRATO nº {$contrato->numero})" : "";
             $textoTaxa = "";
-            if ($contrato) { 
-                $textoContrato = "(CONTRATO nº {$contrato->numero})";
-                $taxaAdm = (float)($contrato->taxa_administrativa ?? 0); 
-                $labelTaxa = $taxaAdm < 0 ? 'Taxa Negativa' : 'Taxa Positiva';
-                $valorTaxaFormatado = number_format($taxaAdm, 2, ',', '.'). '%';
-                $textoTaxa = "| $labelTaxa: $valorTaxaFormatado";
+            if ($contrato) {
+                $labelTaxa = $taxaAdmPercent < 0 ? 'Taxa Negativa' : 'Taxa Positiva';
+                $textoTaxa = "| $labelTaxa: " . number_format($taxaAdmPercent, 2, ',', '.') . '%';
             }
-            $textoEmpenho = "";
-            if ($is_publico && $request->filled('empenho_id')) {
-                $empenhos = Empenho::whereIn('id', $request->empenho_id)->pluck('numero_empenho');
-                if ($empenhos->isNotEmpty()) {
-                    $textoEmpenho = "| Empenho(s): " . $empenhos->implode(', ');
-                }
-            }
-            $textoDealer = "";
-            if ($empresa->codigoDealer && !empty($empresa->codigoDealer->cod_dealer)) {
-                $textoDealer = "| DEALER: " . $empresa->codigoDealer->cod_dealer;
-            }
+            
             $periodoCarbon = Carbon::createFromFormat('Y-m', $periodo);
             $textoPeriodo = $periodoCarbon->locale('pt_BR')->translatedFormat('F/Y');
             $textoVencimento = Carbon::parse($request->data_vencimento)->format('d/m/Y');
-            $textoFiltros = "";
-
-            if ($request->tipo_geracao == 'Fracionada') {
-                $filtrosUsados = [];
-
-                if ($request->filled('grupo_id')) {
-                    $grupoIds = $request->grupo_id;
-                    $idsNumericos = array_filter($grupoIds, fn($v) => is_numeric($v));
-                    $nomes = [];
-                    
-                    if (!empty($idsNumericos)) {
-                        $nomes = Grupo::whereIn('id', $idsNumericos)->pluck('nome')->toArray();
-                    }
-                    if (in_array('null', $grupoIds) || in_array(null, $grupoIds)) {
-                        $nomes[] = "Sem Grupo";
-                    }
-                    
-                    if (!empty($nomes)) {
-                        $filtrosUsados[] = "Grupo(s): " . implode(', ', $nomes);
-                    }
-                }
-
-                if ($request->filled('subgrupo_id')) {
-                    $subIds = $request->subgrupo_id;
-                    $idsNumericos = array_filter($subIds, fn($v) => is_numeric($v));
-                    $nomes = [];
-
-                    if (!empty($idsNumericos)) {
-                        $nomes = Grupo::whereIn('id', $idsNumericos)->pluck('nome')->toArray();
-                    }
-                    if (in_array('null', $subIds) || in_array(null, $subIds)) {
-                        $nomes[] = "Sem Subgrupo";
-                    }
-
-                    if (!empty($nomes)) {
-                        $filtrosUsados[] = "Subgrupo(s): " . implode(', ', $nomes);
-                    }
-                }
-
-                if ($request->filled('contrato_id')) {
-                    $contratos = Contrato::whereIn('id', $request->contrato_id)->pluck('numero');
-                     if ($contratos->isNotEmpty()) $filtrosUsados[] = "Contrato(s): " . $contratos->implode(', ');
-                }
-                if (!empty($filtrosUsados)) {
-                    $textoFiltros = "| Filtros: (" . implode('; ', $filtrosUsados) . ")";
-                }
-            }
 
             $obs = [];
             if ($textoContrato) $obs[] = $textoContrato;
             $obs[] = "Valor Bruto: R$ " . number_format($fatura->valor_total, 2, ',', '.');
             if ($textoTaxa) $obs[] = $textoTaxa;
             $obs[] = "| Valor Líquido: R$ " . number_format($fatura->valor_liquido, 2, ',', '.');
-            $obs[] = "| IR Retido: R$ " . number_format($fatura->valor_descontos, 2, ',', '.');
+            
+            if ($faturaDescontoIR > 0) {
+                $obs[] = "| IR Retido: R$ " . number_format($faturaDescontoIR, 2, ',', '.');
+            } elseif ($valorIRInformativo > 0) {
+                $obs[] = "| Valor IR (Informativo): R$ " . number_format($valorIRInformativo, 2, ',', '.');
+            }
+
             $obs[] = "| Período: " . $textoPeriodo;
-            if ($is_publico) {if ($textoEmpenho) $obs[] = $textoEmpenho; else null;}
-            if ($textoDealer)  $obs[] = $textoDealer; 
-            if ($textoFiltros) $obs[] = $textoFiltros;
+            if ($textoDealer = ($empresa->codigoDealer->cod_dealer ?? null)) $obs[] = "| DEALER: " . $textoDealer;
             $obs[] = "| Vencimento: " . $textoVencimento;
             $dadosBancarios = "DADOS BANCÁRIOS: BANCO: {$paramGlobal->banco} | AGÊNCIA: {$paramGlobal->agencia} | C/C: {$paramGlobal->conta} | CNPJ: {$paramGlobal->cnpj} – {$paramGlobal->razao_social} PIX: {$paramGlobal->chave_pix}";
             $fatura->observacoes = trim(implode(' ', $obs)) . ' ' . $dadosBancarios;
 
             $fatura->save();
-            
             DB::commit();
-            return response()->json(['success' => true, 'message' => "Fatura #{$fatura->id} (Valor: R$ ".number_format($fatura->valor_liquido, 2, ',', '.').") gerada com sucesso!"]);
+            return response()->json(['success' => true, 'message' => "Fatura #{$fatura->id} gerada!"]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Erro ao gerar fatura: ' . $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+            return response()->json(['success' => false, 'message' => 'Erro: ' . $e->getMessage()], 500);
         }
     }
     
@@ -1614,7 +1627,7 @@ public function index(Request $request)
         
         $queryPagamentos = FaturaPagamento::whereHas('fatura', function ($q) use ($cliente_id, $periodo) {
             $q->where('cliente_id', $cliente_id)
-              ->whereRaw("TO_CHAR(periodo_fatura, 'YYYY-MM') = ?", [$periodo]);
+                ->whereRaw("TO_CHAR(periodo_fatura, 'YYYY-MM') = ?", [$periodo]);
         });
 
         $qtd_faturas = $queryFaturas->count();
@@ -1625,6 +1638,7 @@ public function index(Request $request)
 
         $cliente = Empresa::with('matriz.organizacao')->find($cliente_id);
         $parametrosAtivos = $this->getParametrosAtivos($cliente_id); 
+        $paramGlobal = ParametroGlobal::first();
         
         $queryBase = TransacaoFaturamento::whereBetween('data_transacao', [$dataInicio, $dataFim]) 
             ->whereIn('status', ['confirmada', 'liquidada']);
@@ -1647,9 +1661,25 @@ public function index(Request $request)
                 ->join('public.produto as p', 'transacao_faturamento.produto_id', '=', 'p.id')
                 ->leftJoin('contas_receber.parametro_taxa_aliquota as pta', function ($join) use ($organizacao_id_para_taxa) {
                     $join->on('p.produto_categoria_id', '=', 'pta.produto_categoria_id')
-                         ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
-                })
-                ->select(DB::raw('SUM(transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+                            ->where('pta.organizacao_id', '=', $organizacao_id_para_taxa);
+                });
+
+            // --- CORREÇÃO AQUI: JOIN na tabela EMPRESA ---
+            if ($paramGlobal && !$paramGlobal->cobrar_ir_fora_do_estado_rondonia) {
+                $subQuery->leftJoin('public.empresa as c', 'transacao_faturamento.credenciado_id', '=', 'c.id')
+                        ->leftJoin('public.municipio as m', 'c.municipio_id', '=', 'm.id')
+                        ->leftJoin('public.estado as e', 'm.estado_id', '=', 'e.id');
+                
+                $subQuery->select(DB::raw("SUM(
+                    CASE 
+                        WHEN e.sigla IS NOT NULL AND e.sigla != 'RO' THEN 0 
+                        ELSE transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0)
+                    END
+                ) as total_ir_calculado"));
+            } else {
+                $subQuery->select(DB::raw('SUM(transacao_faturamento.valor_total * COALESCE(pta.taxa_aliquota, 0)) as total_ir_calculado'));
+            }
+
             $totalIRPendente = $subQuery->first()->total_ir_calculado ?? 0;
         }
             

@@ -164,7 +164,12 @@ class ClienteController extends Controller
         return view('admin.clientes.show', compact('cliente', 'bloquearCamposEspecificos'));
     }
 
-    // ... (Seu método getUnidades() permanece igual) ...
+    public function getUnidades(Empresa $cliente)
+    {
+        $unidades = $cliente->unidades()->with('municipio.estado')->get();
+        
+        return view('admin.clientes._unidades_table', compact('unidades'));
+    }
 
     /**
      * Atualiza os PARÂMETROS (Função original, agora separada)
