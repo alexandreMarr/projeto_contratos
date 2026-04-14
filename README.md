@@ -202,3 +202,5 @@ CREATE INDEX idx_fatura_periodo_cliente ON contas_receber.faturas (periodo_fatur
 
 ```cron
 * * * * * cd /caminho/para/seu/projeto && php artisan schedule:run >> /dev/null 2>&1
+#   p r o j e t o _ c o n t r a t o s  
+ 
