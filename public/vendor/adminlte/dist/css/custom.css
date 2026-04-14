@@ -375,3 +375,57 @@ canvas {
     .img-circle {
      border-radius: 0% !important;
     }
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #d61212 !important;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    cursor: default;
+    float: left;
+    margin-right: 5px;
+    margin-top: 5px;
+    padding: 0 5px;
+}
+
+
+
+/* BACKGROUND LOGIN */
+.login-page {
+    position: relative;
+    min-height: 100vh;
+    background: url('/vendor/adminlte/dist/img/fundo.png') no-repeat center center;
+    background-size: cover;
+}
+
+/* OVERLAY ESCURO (DEIXA MAIS PROFISSIONAL) */
+.login-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5); /* ajuste aqui (0.3 a 0.6) */
+    z-index: 0;
+}
+
+/* GARANTE QUE O CARD FIQUE NA FRENTE */
+.login-box {
+    position: relative;
+    z-index: 1;
+}
+
+/* CARD MAIS BONITO */
+.login-card-body {
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* RESPONSIVO */
+@media (max-width: 576px) {
+    .login-box {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .login-card-body {
+        padding: 20px;
+    }
+}

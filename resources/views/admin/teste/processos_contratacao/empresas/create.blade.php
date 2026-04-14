@@ -1,0 +1,18 @@
+@extends('adminlte::page')
+
+@section('title', 'Nova Empresa')
+@section('plugins.Select2', true)
+
+@section('content_header')
+    <h1 class="fw-bold text-primary mb-3">
+        <i class="fas fa-building"></i> Nova Empresa
+    </h1>
+@stop
+
+@section('content')
+<div class="container-fluid">
+    <form action="{{ route('empresas.store') }}" method="POST">
+        @include('admin.empresas._form')
+    </form>
+</div>
+@stop

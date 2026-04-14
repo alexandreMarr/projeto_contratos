@@ -28,7 +28,9 @@
         </div>
 
         <div class="card-body p-0">
-            <table class="table table-hover table-bordered mb-0 align-middle text-sm">
+            <div class="scroll-hint px-3 pt-3"><i class="fas fa-arrows-alt-h mr-1"></i>Arraste a tabela para o lado para ver as ações.</div>
+            <div class="table-responsive">
+            <table class="table table-hover table-bordered mb-0 align-middle text-sm" style="min-width: 700px;">
                 <thead class="table-light">
                     <tr class="text-secondary">
                         <th style="width: 5%">ID</th>
@@ -41,24 +43,20 @@
                         <tr>
                             <td class="fw-semibold text-secondary">{{ $permission->id }}</td>
                             <td>{{ $permission->name }}</td>
-                            <td class="text-center">
+                            <td class="text-center"><div class="table-actions justify-content-center">
                                 @can('edit permissions')
                                     <a href="{{ route('admin.permissions.edit', $permission->id) }}" 
-                                        class="btn btn-sm btn-warning shadow-sm mb-1">
-                                        <i class="fas fa-edit me-1"></i>Editar
-                                    </a>
+                                        class="btn btn-sm btn-warning shadow-sm mb-1"><i class="fas fa-edit"></i><span class="d-none d-md-inline ml-1">Editar</span></a>
                                 @endcan
                                 @can('delete permissions')
                                     <form action="{{ route('admin.permissions.destroy', $permission->id) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger shadow-sm mb-1" 
-                                            onclick="return confirm('Tem certeza que deseja excluir esta permissão?');">
-                                            <i class="fas fa-trash-alt me-1"></i>Excluir
-                                        </button>
+                                            onclick="return confirm('Tem certeza que deseja excluir esta permissão?');"><i class="fas fa-trash-alt"></i><span class="d-none d-md-inline ml-1">Excluir</span></button>
                                     </form>
                                 @endcan
-                            </td>
+                            </div></td>
                         </tr>
                     @empty
                         <tr>
@@ -70,6 +68,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 

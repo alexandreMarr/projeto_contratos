@@ -1,147 +1,102 @@
 @extends('adminlte::page')
 
-@section('title', 'Criar Usuário')
+@section('title', 'Novo Usuário')
+@section('plugins.Select2', true)
+
+@section('content_header')
+    <h1 class="fw-bold text-primary">
+        <i class="fas fa-user-plus mr-2"></i>Novo Usuário
+    </h1>
+@stop
 
 @section('content')
 <div class="container-fluid">
-
-    <h1 class="fw-bold text-primary mb-4">
-        <i class="fas fa-user-plus me-2"></i>Criar Novo Usuário
-    </h1>
+    @include('partials.session-messages')
 
     <form action="{{ route('admin.users.store') }}" method="POST">
         @csrf
-        <div class="card card-filter mb-4 shadow-lg border-0">
+
+        <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-primary text-white">
-                <i class="fas fa-user me-2"></i>Dados do Usuário
+                <strong>Dados do usuário</strong>
             </div>
             <div class="card-body">
-                <div class="row g-3 mb-3">
+                <div class="row">
                     <div class="col-md-6">
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" required placeholder="Nome do usuário">
-                        @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name') }}" required>
+                            @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <input type="email" class="form-control @error('email') is-invalid @enderror" 
-                               id="email" name="email" value="{{ old('email') }}" required placeholder="Email do usuário">
-                        @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" required>
+                            @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                 </div>
 
-                <div class="row g-3 mb-3">
+                <div class="row">
                     <div class="col-md-6">
-                        <input type="password" class="form-control @error('password') is-invalid @enderror" 
-                               id="password" name="password" required placeholder="Senha">
-                        @error('password')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <label>Senha</label>
+                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" required>
+                            @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <input type="password" class="form-control" id="password_confirmation" 
-                               name="password_confirmation" required placeholder="Confirmar Senha">
+                        <div class="form-group">
+                            <label>Confirmar senha</label>
+                            <input type="password" name="password_confirmation" class="form-control" required>
+                        </div>
                     </div>
                 </div>
-
-                {{-- Roles --}}
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Perfis (Roles)</label>
-                    <div>
-                        @foreach ($roles as $role)
-                            <div class="form-check form-check-inline mb-1">
-                                <input class="form-check-input" type="checkbox" name="roles[]" 
-                                       id="role-{{ $role->id }}" value="{{ $role->id }}">
-                                <label class="form-check-label" for="role-{{ $role->id }}">{{ $role->name }}</label>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-
-                {{-- Permissões Diretas --}}
-                @can('assign direct permissions to users')
-                <div class="card shadow-sm mt-4">
-                    <div class="card-header bg-secondary text-white">
-                        <i class="fas fa-key me-2"></i>Permissões Diretas (Não recomendado, use Roles)
-                    </div>
-                    <div class="card-body">
-                        @php $permissionGroups = config('permissions'); @endphp
-
-                        @foreach($permissionGroups as $group)
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <h5 class="mb-0">{{ $group['label'] }}</h5>
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input select-all-group" 
-                                               id="select-all-{{ Str::slug($group['label']) }}">
-                                        <label class="form-check-label" for="select-all-{{ Str::slug($group['label']) }}">
-                                            Selecionar Todos
-                                        </label>
-                                    </div>
-                                </div>
-                                <p class="text-muted small mb-2">{{ $group['description'] }}</p>
-
-                                <div class="row permissions-group" data-group="{{ Str::slug($group['label']) }}">
-                                    @foreach($group['permissions'] as $permissionName)
-                                        @php
-                                            $permission = \Spatie\Permission\Models\Permission::where('name', $permissionName)->first();
-                                        @endphp
-                                        @if($permission)
-                                        <div class="col-md-4 mb-1">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" 
-                                                       name="permissions[]" 
-                                                       id="permission-{{ $permission->id }}" 
-                                                       value="{{ $permission->id }}">
-                                                <label class="form-check-label" for="permission-{{ $permission->id }}">
-                                                    {{ $permission->name }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-                                <hr class="mt-3 mb-3">
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endcan
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary shadow-sm mt-3">
-            <i class="fas fa-save me-1"></i>Salvar Usuário
-        </button>
-        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary shadow-sm mt-3">
-            <i class="fas fa-arrow-left me-1"></i>Cancelar
-        </a>
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <strong>Perfis de acesso</strong>
+                <small>O vínculo de setor é configurado na tela de Setores.</small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @forelse($roles as $role)
+                        <div class="col-md-4 mb-2">
+                            <div class="custom-control custom-checkbox p-2 border rounded">
+                                <input type="checkbox" class="custom-control-input" id="role-{{ $role->id }}" name="roles[]" value="{{ $role->id }}" {{ in_array($role->id, old('roles', [])) ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="role-{{ $role->id }}">{{ ucfirst($role->name) }}</label>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-12 text-muted">Nenhum perfil cadastrado.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <strong>Setores existentes</strong>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">As permissões operacionais das etapas são definidas por setor. Depois de criar o usuário, vincule-o nos setores necessários.</p>
+                <div class="row">
+                    @forelse($setores as $setor)
+                        <div class="col-md-3 mb-2">
+                            <span class="badge badge-light border px-3 py-2">{{ $setor->nome }}</span>
+                        </div>
+                    @empty
+                        <div class="col-12 text-muted">Nenhum setor ativo cadastrado.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-success"><i class="fas fa-save mr-1"></i>Salvar usuário</button>
+        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Voltar</a>
     </form>
 </div>
 @stop
-
-@push('js')
-<script>
-$(document).ready(function() {
-    function syncSelectAll(groupSlug) {
-        const groupCheckboxes = $(`.permissions-group[data-group="${groupSlug}"] input[type="checkbox"]`);
-        const selectAll = $(`#select-all-${groupSlug}`);
-        const allChecked = groupCheckboxes.length > 0 && groupCheckboxes.length === groupCheckboxes.filter(':checked').length;
-        selectAll.prop('checked', allChecked);
-    }
-
-    $('.permissions-group').each(function() {
-        const groupSlug = $(this).data('group');
-        syncSelectAll(groupSlug);
-    });
-
-    $('.select-all-group').on('change', function() {
-        const groupSlug = $(this).attr('id').replace('select-all-', '');
-        const isChecked = $(this).is(':checked');
-        $(`.permissions-group[data-group="${groupSlug}"] input[type="checkbox"]`).prop('checked', isChecked);
-    });
-
-    $('.permissions-group input[type="checkbox"]').on('change', function() {
-        const groupSlug = $(this).closest('.permissions-group').data('group');
-        syncSelectAll(groupSlug);
-    });
-});
-</script>
-@endpush

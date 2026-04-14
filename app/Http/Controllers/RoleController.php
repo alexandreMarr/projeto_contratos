@@ -2,55 +2,61 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Spatie\Activitylog\Models\Activity;
 
 class RoleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view roles', ['only' => ['index', 'show']]);
-        $this->middleware('permission:create roles', ['only' => ['create', 'store']]);
-        $this->middleware('permission:edit roles', ['only' => ['edit', 'update', 'assignPermissions']]);
-        $this->middleware('permission:delete roles', ['only' => ['destroy']]);
+        $this->middleware('permission:view roles')->only(['index', 'show']);
+        $this->middleware('permission:create roles')->only(['create', 'store']);
+        $this->middleware('permission:edit roles')->only(['edit', 'update', 'assignPermissions']);
+        $this->middleware('permission:delete roles')->only(['destroy']);
     }
 
     public function index()
     {
-        $roles = Role::paginate(10);
+        $roles = Role::withCount('permissions')->paginate(12);
         return view('admin.roles.index', compact('roles'));
     }
 
     public function create()
     {
-        return view('admin.roles.create');
+        $permissionGroups = config('permissions');
+        return view('admin.roles.create', compact('permissionGroups'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:roles'],
+            'permissions' => 'array',
+            'permissions.*' => 'exists:permissions,id',
         ]);
 
-        $role = Role::create(['name' => $request->name]);
+        $role = Role::create(['name' => $request->name, 'guard_name' => 'web']);
 
-        // Limpa o cache após a criação
+        if ($request->filled('permissions')) {
+            $permissions = Permission::whereIn('id', $request->permissions)->get();
+            $role->syncPermissions($permissions);
+        }
+
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        return redirect()->route('admin.roles.index')
-                         ->with('success', 'Role criada com sucesso!');
+        return redirect()->route('admin.roles.edit', $role)
+            ->with('success', 'Perfil criado com sucesso.');
     }
 
     public function edit(Role $role)
     {
-        $permissions = Permission::all();
+        $permissions = Permission::orderBy('name')->get();
         $rolePermissions = $role->permissions->pluck('id')->toArray();
         $permissionGroups = config('permissions');
 
-        return view('admin.roles.edit', compact('role', 'permissions', 'rolePermissions','permissionGroups'));
+        return view('admin.roles.edit', compact('role', 'permissions', 'rolePermissions', 'permissionGroups'));
     }
 
     public function update(Request $request, Role $role)
@@ -61,11 +67,10 @@ class RoleController extends Controller
 
         $role->update(['name' => $request->name]);
 
-        // Limpa o cache após a atualização do nome
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         return redirect()->route('admin.roles.index')
-                         ->with('success', 'Role atualizada com sucesso!');
+            ->with('success', 'Perfil atualizado com sucesso.');
     }
 
     public function assignPermissions(Request $request, Role $role)
@@ -75,51 +80,32 @@ class RoleController extends Controller
             'permissions.*' => 'exists:permissions,id',
         ]);
 
-        // Permissões atuais antes da sincronização
-        $currentPermissions = $role->permissions->pluck('name')->toArray();
+        $permissions = Permission::whereIn('id', $request->permissions ?? [])->get();
+        $role->syncPermissions($permissions);
 
-        // Novas permissões selecionadas
-        $newPermissions = Permission::whereIn('id', $request->permissions ?? [])->get();
-        $newPermissionNames = $newPermissions->pluck('name')->toArray();
-
-        // Sincroniza permissões
-        $role->syncPermissions($newPermissions);
-
-        // Limpa o cache após atribuir permissões
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Determina permissões adicionadas e removidas
-        $added = array_diff($newPermissionNames, $currentPermissions);
-        $removed = array_diff($currentPermissions, $newPermissionNames);
-
-        // Log detalhado
-        activity()
+        activity('Perfil de Acesso (Role)')
             ->performedOn($role)
             ->causedBy(auth()->user())
-            ->withProperties([
-                'added_permissions' => $added,
-                'removed_permissions' => $removed
-            ])
-            ->log('Permissões da role atualizadas');
+            ->withProperties(['permissions' => $permissions->pluck('name')->toArray()])
+            ->log("Permissões do perfil '{$role->name}' foram atualizadas");
 
-        return redirect()->route('admin.roles.edit', $role->id)
-                        ->with('success', 'Permissões atribuídas à role com sucesso!');
+        return redirect()->route('admin.roles.edit', $role)
+            ->with('success', 'Permissões do perfil atualizadas com sucesso.');
     }
-
 
     public function destroy(Role $role)
     {
-        if ($role->users()->count() > 0) {
+        if ($role->name === 'admin') {
             return redirect()->route('admin.roles.index')
-                             ->with('error', 'Não é possível excluir a role, existem usuários atribuídos a ela!');
+                ->with('error', 'O perfil admin não pode ser removido.');
         }
 
         $role->delete();
-
-        // Limpa o cache após a exclusão
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         return redirect()->route('admin.roles.index')
-                         ->with('success', 'Role excluída com sucesso!');
+            ->with('success', 'Perfil removido com sucesso.');
     }
 }

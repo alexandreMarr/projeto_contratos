@@ -2,23 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasApiTokens, Notifiable, HasRoles;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -26,58 +18,54 @@ class User extends Authenticatable
         'imagem_perfil',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
 
+    protected $appends = [
+        'imagem_perfil_url',
+    ];
+
+    public function getImagemPerfilUrlAttribute(): string
+    {
+        if (!empty($this->imagem_perfil)) {
+            return url('storage/' . ltrim($this->imagem_perfil, '/')) . '?v=' . optional($this->updated_at)->timestamp;
+        }
+
+        return asset('vendor/adminlte/dist/img/user2-160x160.jpg');
+    }
+
     public function adminlte_image()
     {
-        $user_auth = auth()->user();
-        return $user_auth->imagem_perfil
-            ? asset('storage/' . $user_auth->imagem_perfil)
-            : asset('vendor/adminlte/dist/img/user.png');
+        return $this->imagem_perfil_url;
+    }
+
+    public function adminlte_desc()
+    {
+        return $this->roles->pluck('name')->join(', ') ?: 'Usuário do sistema';
     }
 
     public function adminlte_profile_url()
     {
-        return 'profile';
+        return route('profile.edit');
     }
 
-    /**
-     * Configuração do Log de Atividade.
-     */
-    public function getActivitylogOptions(): LogOptions
+    public function setores()
     {
-        return LogOptions::defaults()
-            ->logOnly(['name', 'email', 'imagem_perfil'])
-            ->useLogName('Usuário')
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(function (string $eventName) {
-                $acao = match ($eventName) {
-                    'created' => 'criado',
-                    'updated' => 'atualizado',
-                    'deleted' => 'excluído',
-                    'edited' => 'editado',
-                    default => $eventName
-                };
-                return "Usuário {$this->name} foi {$acao}";
-            });
+        return $this->belongsToMany(Setor::class, 'setor_user', 'user_id', 'setor_id')
+            ->withPivot([
+                'pode_visualizar',
+                'pode_editar',
+                'pode_aprovar',
+                'pode_reprovar',
+                'ativo',
+            ])
+            ->withTimestamps();
     }
 }

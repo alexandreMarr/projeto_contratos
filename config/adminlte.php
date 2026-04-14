@@ -2,133 +2,45 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Title
-    |--------------------------------------------------------------------------
-    |
-    | Here you can change the default title of your admin panel.
-    |
-    | For detailed instructions you can look the title section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
-
-    'title' => 'Financeiro',
+    'title' => 'Nova 364',
     'title_prefix' => '',
     'title_postfix' => '',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Favicon
-    |--------------------------------------------------------------------------
-    |
-    | Here you can activate the favicon.
-    |
-    | For detailed instructions you can look the favicon section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
-
     'use_ico_only' => true,
     'use_full_favicon' => false,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Google Fonts
-    |--------------------------------------------------------------------------
-    |
-    | Here you can allow or not the use of external google fonts. Disabling the
-    | google fonts may be useful if your admin panel internet access is
-    | restricted somehow.
-    |
-    | For detailed instructions you can look the google fonts section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
 
     'google_fonts' => [
         'allowed' => true,
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Panel Logo
-    |--------------------------------------------------------------------------
-    |
-    | Here you can change the logo of your admin panel.
-    |
-    | For detailed instructions you can look the logo section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
-
     'logo' => false,
-    'logo_img' => 'vendor/adminlte/dist/img/favicon-rb.png',
+    'logo_img' => 'vendor/adminlte/dist/img/Nova_364_verde.jpg',
     'logo_img_class' => 'brand-image img',
-    //'logo_img_xl' => 'vendor/adminlte/dist/img/Rovema Pay.png',
     'logo_img_xl_class' => 'brand-image-xl',
-    'logo_img_alt' => 'Admin Logo',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Logo
-    |--------------------------------------------------------------------------
-    |
-    | Here you can setup an alternative logo to use on your login and register
-    | screens. When disabled, the admin panel logo will be used instead.
-    |
-    | For detailed instructions you can look the auth logo section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
+    'logo_img_alt' => 'Nova 364',
 
     'auth_logo' => [
-        'enabled' => True,
+        'enabled' => true,
         'img' => [
-            'path' => 'vendor/adminlte/dist/img/Rovema Pay.png',
-            'alt' => 'Auth Logo',
-            'class' => '',
-            'width' => 170,
-            'height' => 50,
+            'path' => 'vendor/adminlte/dist/img/Nova_364_verde.jpg',
+            'alt' => 'Nova 364',
+            'class' => 'img-fluid',
+            'width' => 220,
+            'height' => 90,
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Preloader Animation
-    |--------------------------------------------------------------------------
-    |
-    | Here you can change the preloader animation configuration.
-    |
-    | For detailed instructions you can look the preloader section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
 
     'preloader' => [
-        'enabled' => True,
+        'enabled' => true,
         'img' => [
-            'path' => 'vendor/adminlte/dist/img/Logo Rovema Bank.png',
-            'alt' => 'UP Preloader Image',
+            'path' => 'vendor/adminlte/dist/img/Nova_364_verde.jpg',
+            'alt' => 'Nova 364',
             'effect' => 'animation__shake',
-            'width' => 60,
-            'height' => 60,
-            'class' => 'img-fluid', // Deixe vazio ou use 'img-fluid'
+            'width' => 70,
+            'height' => 70,
+            'class' => 'img-fluid',
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | User Menu
-    |--------------------------------------------------------------------------
-    |
-    | Here you can activate and change the user menu.
-    |
-    | For detailed instructions you can look the user menu section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
 
     'usermenu_enabled' => true,
     'usermenu_header' => true,
@@ -137,55 +49,19 @@ return [
     'usermenu_desc' => false,
     'usermenu_profile_url' => true,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Layout
-    |--------------------------------------------------------------------------
-    |
-    | Here we change the layout of your admin panel.
-    |
-    | For detailed instructions you can look the layout section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
-    */
-
     'layout_topnav' => true,
     'layout_boxed' => false,
     'layout_fixed_sidebar' => null,
-    'layout_fixed_navbar' => null,
+    'layout_fixed_navbar' => true,
     'layout_fixed_footer' => null,
     'layout_dark_mode' => null,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Views Classes
-    |--------------------------------------------------------------------------
-    |
-    | Here you can change the look and behavior of the authentication views.
-    |
-    | For detailed instructions you can look the auth classes section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
-    */
-
-    'classes_auth_card' => '',
+    'classes_auth_card' => 'shadow border-0 rounded-lg',
     'classes_auth_header' => 'd-none',
-    'classes_auth_body' => '',
-    'classes_auth_footer' => 'text-center',
+    'classes_auth_body' => 'login-nova364-body',
+    'classes_auth_footer' => 'text-center bg-white border-0',
     'classes_auth_icon' => 'fa-lg text-primary',
-    'classes_auth_btn' => 'btn-flat btn bg-primary',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Panel Classes
-    |--------------------------------------------------------------------------
-    |
-    | Here you can change the look and behavior of the admin panel.
-    |
-    | For detailed instructions you can look the admin panel classes here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
-    */
+    'classes_auth_btn' => 'btn-flat btn bg-primary btn-block',
 
     'classes_body' => '',
     'classes_brand' => '',
@@ -193,23 +69,10 @@ return [
     'classes_content_wrapper' => '',
     'classes_content_header' => 'container-fluid',
     'classes_content' => 'container-fluid',
-    // 'classes_sidebar' => 'sidebar-light-white elevation-4',
     'classes_sidebar_nav' => '',
-    // 'classes_topnav' => 'navbar-white navbar-light',
+    'classes_topnav' => 'navbar-white navbar-light border-bottom',
     'classes_topnav_nav' => 'navbar-expand-lg',
     'classes_topnav_container' => 'container-fluid',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sidebar
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the sidebar of the admin panel.
-    |
-    | For detailed instructions you can look the sidebar section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
-    */
 
     'sidebar_mini' => null,
     'sidebar_collapse' => false,
@@ -221,18 +84,6 @@ return [
     'sidebar_nav_accordion' => true,
     'sidebar_nav_animation_speed' => 300,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Control Sidebar (Right Sidebar)
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the right sidebar aka control sidebar of the admin panel.
-    |
-    | For detailed instructions you can look the right sidebar section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
-    */
-
     'right_sidebar' => false,
     'right_sidebar_icon' => 'fas fa-cogs',
     'right_sidebar_theme' => 'dark',
@@ -240,18 +91,6 @@ return [
     'right_sidebar_push' => true,
     'right_sidebar_scrollbar_theme' => 'os-theme-light',
     'right_sidebar_scrollbar_auto_hide' => 'l',
-
-    /*
-    |--------------------------------------------------------------------------
-    | URLs
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the url settings of the admin panel.
-    |
-    | For detailed instructions you can look the urls section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
-    */
 
     'use_route_url' => false,
     'dashboard_url' => 'home',
@@ -262,135 +101,68 @@ return [
     'password_email_url' => 'password/email',
     'profile_url' => false,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Laravel Mix
-    |--------------------------------------------------------------------------
-    |
-    | Here we can enable the Laravel Mix option for the admin panel.
-    |
-    | For detailed instructions you can look the laravel mix section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
-    |
-    */
-
     'enabled_laravel_mix' => false,
     'laravel_mix_css_path' => 'css/app.css',
     'laravel_mix_js_path' => 'js/app.js',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Menu Items
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the sidebar/top navigation of the admin panel.
-    |
-    | For detailed instructions you can look here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
-    |
-    */
-
-    'menu' =>[
+    'menu' => [
         [
-            'text'          => 'Dashboard',
-            'url'           => 'home',
-            'icon'          => 'bi bi-speedometer2', // Ícone Mantido
-        ],
-        
-        [
-            'text' => 'Clientes',
-            'icon' => 'bi bi-people-fill', // Ícone Alterado
-            'can'  => 'view cliente',
-            'url' => 'clientes', // Ajustei a URL para ser mais específica
+            'text' => 'Dashboard',
+            'url' => 'home',
+            'icon' => 'bi bi-speedometer2',
         ],
 
         [
-            'text' => 'Credenciados',
-            'icon' => 'bi bi-shop', // Ícone Mantido (já era bom)
-            'can'  => 'view credenciado',
-            'url' => 'credenciados', // Ajustei a URL para ser mais específica
+            'text' => 'Empresas',
+            'icon' => 'bi bi-building',
+            'can'  => 'view empresas',
+            'url'  => 'empresas',
         ],
 
         [
-            'text' => 'Faturamento',
-            'icon' => 'bi bi-receipt', // Ícone Alterado
-            'url' => 'faturamento', // Ajustei a URL para ser mais específica
-            'can'  => 'view faturamento',
-        ],
-
-        [
-            'text' => 'Cobrança',
-            'icon' => 'bi bi-collection-fill', // Ícone Alterado
-            'url' => 'cobranca/index', // Ajustei a URL para ser mais específica
-            'can'  => 'view cobranca',
-        ],
-        
-        [
-            'text' => 'Relatórios',
-            'icon' => 'bi bi-clipboard-data-fill', // Ícone Mantido
-            'can'  => 'view relatorio',
-            'submenu' => [
-                [
-                    'text' => 'Faturas',
-                    'url' => 'inventario/estoque/index',
-                    'can'  => 'view relatorio',
-                ],
-                [
-                    'text' => 'Cobranças',
-                    'url' => 'inventario/cartao/index',
-                    'can'  => 'view relatorio',
-                ],
-            ],
+            'text' => 'Contratos',
+            'icon' => 'bi bi-file-earmark-text',
+            'can'  => 'view processos contratacao',
+            'url'  => 'processos-contratacao',
         ],
 
         [
             'text' => 'Sistema',
-            'icon' => 'bi bi-gear-fill', // Ícone Mantido
+            'icon' => 'bi bi-gear-fill',
             'submenu' => [
                 [
-                    'text' => 'Usuarios',
-                    'url' => 'admin/users',
-                    'can'  => 'view users', 
+                    'text' => 'Usuários',
+                    'url'  => 'admin/users',
+                    'can'  => 'view users',
                 ],
                 [
                     'text' => 'Perfil de Acesso',
-                    'url' => 'admin/roles',
-                    'can'  => 'view roles', 
+                    'url'  => 'admin/roles',
+                    'can'  => 'view roles',
                 ],
                 [
                     'text' => 'Permissões',
-                    'url' => 'admin/permissions',
-                    'can'  => 'view permissions', 
+                    'url'  => 'admin/permissions',
+                    'can'  => 'view permissions',
                 ],
                 [
-                    'text' => 'Paramentros Globais',
-                    'url' => 'admin/parametros-globais', // URL ajustada
-                    'can'  => 'view parametros globais', // Permissão ajustada
+                    'text' => 'Etapas Padrão',
+                    'url'  => 'etapas-padrao',
+                    'can'  => 'view etapas padrao',
                 ],
                 [
-                    'text' => 'Reprocessamento',
-                    'url' => 'admin/reprocessamentos', // URL ajustada
-                    'can'  => 'view reprocessamento', // Permissão ajustada
+                    'text' => 'Setores',
+                    'url'  => 'setores',
+                    'can'  => 'view setores',
                 ],
                 [
-                    'text' => 'logs',
-                    'url' => 'admin/logs', // URL ajustada
-                    'can'  => 'view logs', // Permissão ajustada
+                    'text' => 'Logs',
+                    'url'  => 'admin/logs',
+                    'can'  => 'view logs',
                 ],
             ],
         ],
     ],
-    /*
-    |--------------------------------------------------------------------------
-    | Menu Filters
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the menu filters of the admin panel.
-    |
-    | For detailed instructions you can look the menu filters section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
-    |
-    */
 
     'filters' => [
         JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
@@ -401,18 +173,6 @@ return [
         JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter::class,
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Plugins Initialization
-    |--------------------------------------------------------------------------
-    |
-    | Here we can modify the plugins used inside the admin panel.
-    |
-    | For detailed instructions you can look the plugins section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Plugins-Configuration
-    |
-    */
 
     'plugins' => [
         'Datatables' => [
@@ -428,16 +188,16 @@ return [
                     'asset' => false,
                     'location' => '//cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js',
                 ],
-                 [
-                     'type' => 'css',
-                     'asset' => false,
+                [
+                    'type' => 'css',
+                    'asset' => false,
                     'location' => '//cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.min.css',
-                 ],
-                 [
-                     'type' => 'js',
-                     'asset' => false,
-                     'location' => '//cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js',
-                 ],
+                ],
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js',
+                ],
                 [
                     'type' => 'js',
                     'asset' => false,
@@ -468,49 +228,43 @@ return [
                     'asset' => false,
                     'location' => '//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js',
                 ],
-
-
             ],
         ],
 
         'bootstrap-icons' => [
-
-            'active' => TRUE,
-            'files'    =>[
-            [
-               'type' => 'css',
-               'asset' => false,
-               'location' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css',
-           ],
-           [
-            'type' => 'js',
-            'asset' => false,
-            'location' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js',
-            ],
-            [
-                'type' => 'js',
-                'asset' => false,
-                'location' => 'https://kit.fontawesome.com/72f0f90082.js',
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css',
                 ],
-
-           ],
-        ],
-        'bootstrap' => [
-
-            'active' => TRUE,
-            'files'    =>[
-            [
-               'type' => 'css',
-               'asset' => false,
-               'location' => '//cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css',
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js',
+                ],
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => 'https://kit.fontawesome.com/72f0f90082.js',
+                ],
             ],
-
-
-
-           ],
         ],
+
+        'bootstrap' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => '//cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css',
+                ],
+            ],
+        ],
+
         'Select2' => [
-            'active' => TRUE,
+            'active' => true,
             'files' => [
                 [
                     'type' => 'js',
@@ -524,6 +278,7 @@ return [
                 ],
             ],
         ],
+
         'Chartjs' => [
             'active' => true,
             'files' => [
@@ -539,6 +294,7 @@ return [
                 ],
             ],
         ],
+
         'Sweetalert2' => [
             'active' => false,
             'files' => [
@@ -549,6 +305,7 @@ return [
                 ],
             ],
         ],
+
         'Pace' => [
             'active' => true,
             'files' => [
@@ -564,30 +321,29 @@ return [
                 ],
             ],
         ],
+
         'CustomCSS' => [
             'active' => true,
             'files' => [
                 [
                     'type' => 'css',
                     'asset' => true,
-                    'location' => 'css/admin_custom.css', // O caminho dentro de public/
+                    'location' => 'css/admin_custom.css',
+                ],
+            ],
+        ],
+
+        'CustomJS' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => true,
+                    'location' => 'js/admin_responsive.js',
                 ],
             ],
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | IFrame
-    |--------------------------------------------------------------------------
-    |
-    | Here we change the IFrame mode configuration. Note these changes will
-    | only apply to the view that extends and enable the IFrame mode.
-    |
-    | For detailed instructions you can look the iframe mode section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/IFrame-Mode-Configuration
-    |
-    */
 
     'iframe' => [
         'default_tab' => [
@@ -608,18 +364,6 @@ return [
             'use_navbar_items' => true,
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Livewire
-    |--------------------------------------------------------------------------
-    |
-    | Here we can enable the Livewire support.
-    |
-    | For detailed instructions you can look the livewire here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
-    |
-    */
 
     'livewire' => false,
 ];

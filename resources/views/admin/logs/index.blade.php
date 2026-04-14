@@ -61,7 +61,9 @@
         </div>
 
         <div class="card-body p-0">
-            <table id="logs-table" class="table table-hover table-bordered mb-0 align-middle text-sm" style="width:100%">
+            <div class="scroll-hint px-3 pt-3"><i class="fas fa-arrows-alt-h mr-1"></i>Arraste a tabela para o lado para ver todas as colunas.</div>
+            <div class="table-responsive">
+            <table id="logs-table" class="table table-hover table-bordered mb-0 align-middle text-sm w-100" style="width:100%; min-width: 1100px;">
                 <thead class="table-light">
                     <tr class="text-secondary">
                         <th style="width: 5%">ID</th>
@@ -74,6 +76,7 @@
                 </thead>
                 <tbody></tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -116,7 +119,9 @@ $(document).ready(function() {
     var table = $('#logs-table').DataTable({
         processing: true,
         serverSide: true,
-        responsive: true,
+        responsive: false,
+        autoWidth: false,
+        scrollX: true,
         ajax: {
             url: '{{ route('admin.logs.index') }}',
             data: function(d) {

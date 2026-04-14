@@ -2,177 +2,165 @@
 
 @section('title', 'Editar Usuário')
 
+@section('content_header')
+    <h1 class="fw-bold text-primary">
+        <i class="fas fa-user-cog mr-2"></i>Gerenciar Usuário
+    </h1>
+@stop
+
 @section('content')
 <div class="container-fluid">
-
-    <h1 class="fw-bold text-primary mb-4">
-        <i class="fas fa-user-cog me-2"></i>Gerenciar Acesso e Dados: {{ $user->name }}
-    </h1>
-    
     @include('partials.session-messages')
 
-    {{-- Editar dados cadastrais --}}
-    @can('edit users')
-    <div class="card card-filter mb-4 shadow-lg border-0">
+    <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-primary text-white">
-            <i class="fas fa-edit me-2"></i>Editar Dados Cadastrais
+            <strong>Dados principais</strong>
         </div>
         <div class="card-body">
-            <form action="{{ route('admin.users.update', $user->id) }}" method="POST">
+            <form action="{{ route('admin.users.update', $user) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <div class="row g-3">
+
+                <div class="row">
                     <div class="col-md-6">
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name', $user->name) }}" required 
-                               placeholder="Nome do usuário">
-                        @error('name')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" required>
+                            @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <input type="email" class="form-control @error('email') is-invalid @enderror" 
-                               id="email" name="email" value="{{ old('email', $user->email) }}" required 
-                               placeholder="Email do usuário">
-                        @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                    </div>
-                </div>
-                <hr>
-                <p class="text-muted small">Deixe os campos de senha em branco para não alterá-la.</p>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <input type="password" class="form-control @error('password') is-invalid @enderror" 
-                               id="password" name="password" placeholder="Nova senha">
-                        @error('password')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                    </div>
-                    <div class="col-md-6">
-                        <input type="password" class="form-control" id="password_confirmation" 
-                               name="password_confirmation" placeholder="Confirmar nova senha">
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" required>
+                            @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary mt-3 shadow-sm">
-                    <i class="fas fa-save me-1"></i>Salvar Alterações
-                </button>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Nova senha</label>
+                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror">
+                            @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Confirmar nova senha</label>
+                            <input type="password" name="password_confirmation" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary"><i class="fas fa-save mr-1"></i>Salvar dados</button>
             </form>
         </div>
     </div>
-    @endcan
 
-    {{-- Atribuir Roles --}}
     @can('assign roles to users')
-    <div class="card card-filter mb-4 shadow-lg border-0">
-        <div class="card-header bg-secondary text-white">
-            <i class="fas fa-user-tag me-2"></i>Atribuir Perfis (Roles)
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-info text-white">
+            <strong>Perfis de acesso</strong>
         </div>
         <div class="card-body">
-            <form action="{{ route('admin.users.assignRoles', $user->id) }}" method="POST">
+            <form action="{{ route('admin.users.assignRoles', $user) }}" method="POST">
                 @csrf
-                <div class="mb-3">
-                    @foreach ($roles as $role)
-                        <div class="form-check form-check-inline mb-1">
-                            <input class="form-check-input" type="checkbox" name="roles[]" 
-                                   id="role-{{ $role->id }}" value="{{ $role->id }}"
-                                   {{ in_array($role->id, $userRoles) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="role-{{ $role->id }}">{{ $role->name }}</label>
+                <div class="row">
+                    @foreach($roles as $role)
+                        <div class="col-md-4 mb-2">
+                            <div class="custom-control custom-checkbox p-2 border rounded">
+                                <input type="checkbox" class="custom-control-input" id="role-{{ $role->id }}" name="roles[]" value="{{ $role->id }}" {{ in_array($role->id, $userRoles) ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="role-{{ $role->id }}">{{ ucfirst($role->name) }}</label>
+                            </div>
                         </div>
                     @endforeach
                 </div>
-                <button type="submit" class="btn btn-primary shadow-sm">
-                    <i class="fas fa-save me-1"></i>Salvar Perfis
-                </button>
+                <button class="btn btn-info"><i class="fas fa-user-shield mr-1"></i>Salvar perfis</button>
             </form>
         </div>
     </div>
     @endcan
 
-    {{-- Atribuir Permissões Diretas --}}
     @can('assign direct permissions to users')
-    <div class="card card-filter mb-4 shadow-lg border-0">
+    <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-secondary text-white">
-            <i class="fas fa-key me-2"></i>Atribuir Permissões Diretas (Não recomendado, use Roles)
+            <strong>Permissões diretas</strong>
         </div>
         <div class="card-body">
-             <form action="{{ route('admin.users.assignDirectPermissions', $user->id) }}" method="POST">
+            <form action="{{ route('admin.users.assignDirectPermissions', $user) }}" method="POST">
                 @csrf
-
-                @php $permissionGroups = config('permissions'); @endphp
-
                 @foreach($permissionGroups as $group)
                     <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h5 class="mb-0">{{ $group['label'] }}</h5>
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input select-all-group" 
-                                       id="select-all-{{ Str::slug($group['label']) }}">
-                                <label class="form-check-label" for="select-all-{{ Str::slug($group['label']) }}">
-                                    Selecionar Todos
-                                </label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h5 class="mb-0">{{ $group['label'] }}</h5>
+                                <small class="text-muted">{{ $group['description'] }}</small>
                             </div>
                         </div>
-                        <p class="text-muted small mb-2">{{ $group['description'] }}</p>
-
-                        <div class="row permissions-group" data-group="{{ Str::slug($group['label']) }}">
+                        <div class="row permissions-group" data-group="{{ \Illuminate\Support\Str::slug($group['label']) }}">
                             @foreach($group['permissions'] as $permissionName)
-                                @php
-                                    $permission = \Spatie\Permission\Models\Permission::where('name', $permissionName)->first();
-                                @endphp
+                                @php($permission = $permissions->firstWhere('name', $permissionName))
                                 @if($permission)
-                                <div class="col-md-4 mb-1">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" 
-                                               name="permissions[]" 
-                                               id="permission-{{ $permission->id }}" 
-                                               value="{{ $permission->id }}"
-                                               {{ in_array($permission->id, $userPermissions) ? 'checked' : '' }}>
-                                        <label class="form-check-label" for="permission-{{ $permission->id }}">
-                                            {{ $permission->name }}
-                                        </label>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="custom-control custom-checkbox p-2 border rounded">
+                                            <input class="custom-control-input" type="checkbox" name="permissions[]" id="permission-{{ $permission->id }}" value="{{ $permission->id }}" {{ in_array($permission->id, $userPermissions) ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="permission-{{ $permission->id }}">{{ $permission->name }}</label>
+                                        </div>
                                     </div>
-                                </div>
                                 @endif
                             @endforeach
                         </div>
-                        <hr class="mt-3 mb-3">
+                        <hr>
                     </div>
                 @endforeach
-
-                <button type="submit" class="btn btn-primary shadow-sm">
-                    <i class="fas fa-save me-1"></i>Salvar Permissões Diretas
-                </button>
+                <button class="btn btn-secondary"><i class="fas fa-key mr-1"></i>Salvar permissões diretas</button>
             </form>
         </div>
     </div>
     @endcan
 
-    <a href="{{ route('admin.users.index') }}" class="btn btn-secondary shadow-sm mt-3">
-        <i class="fas fa-arrow-left me-1"></i>Voltar para a Lista
-    </a>
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-light">
+            <strong>Setores vinculados</strong>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">As ações dentro das etapas obedecem o vínculo do usuário com o setor e as permissões marcadas em cada setor.</p>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th>Setor</th>
+                            <th>Visualizar</th>
+                            <th>Editar</th>
+                            <th>Aprovar</th>
+                            <th>Reprovar</th>
+                            <th>Ativo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($user->setores as $setor)
+                            <tr>
+                                <td>{{ $setor->nome }}</td>
+                                <td>{{ $setor->pivot->pode_visualizar ? 'Sim' : 'Não' }}</td>
+                                <td>{{ $setor->pivot->pode_editar ? 'Sim' : 'Não' }}</td>
+                                <td>{{ $setor->pivot->pode_aprovar ? 'Sim' : 'Não' }}</td>
+                                <td>{{ $setor->pivot->pode_reprovar ? 'Sim' : 'Não' }}</td>
+                                <td>{{ $setor->pivot->ativo ? 'Sim' : 'Não' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-muted">Usuário ainda não vinculado a nenhum setor.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted">Para alterar essas permissões, acesse o cadastro de setores.</small>
+        </div>
+    </div>
+
+    <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Voltar</a>
 </div>
 @stop
-
-@push('js')
-<script>
-$(document).ready(function() {
-    function syncSelectAll(groupSlug) {
-        const groupCheckboxes = $(`.permissions-group[data-group="${groupSlug}"] input[type="checkbox"]`);
-        const selectAll = $(`#select-all-${groupSlug}`);
-        const allChecked = groupCheckboxes.length > 0 && groupCheckboxes.length === groupCheckboxes.filter(':checked').length;
-        selectAll.prop('checked', allChecked);
-    }
-
-    $('.permissions-group').each(function() {
-        const groupSlug = $(this).data('group');
-        syncSelectAll(groupSlug);
-    });
-
-    $('.select-all-group').on('change', function() {
-        const groupSlug = $(this).attr('id').replace('select-all-', '');
-        const isChecked = $(this).is(':checked');
-        $(`.permissions-group[data-group="${groupSlug}"] input[type="checkbox"]`).prop('checked', isChecked);
-    });
-
-    $('.permissions-group input[type="checkbox"]').on('change', function() {
-        const groupSlug = $(this).closest('.permissions-group').data('group');
-        syncSelectAll(groupSlug);
-    });
-});
-</script>
-@endpush

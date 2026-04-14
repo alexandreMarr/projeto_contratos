@@ -1,68 +1,85 @@
-<section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Informações do Perfil') }}
-        </h2>
+<div class="card card-outline card-primary shadow-sm mb-4">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-id-card mr-1"></i> Informações do Perfil
+        </h3>
+    </div>
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __("Atualize as informações do perfil da sua conta e o endereço de Email.") }}
-        </p>
-    </header>
+    <div class="card-body">
+        <p class="text-muted mb-4">Atualize seu nome, email e foto de perfil.</p>
 
-    <form id="send-verification" method="post" action="{{ route('verification.send') }}">
-        @csrf
-    </form>
+        <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
+            @csrf
+            @method('PATCH')
 
-    <form method="post" action="{{ route('profile.update') }}" class="mt-6 space-y-6" enctype="multipart/form-data">
-        @csrf
-        @method('patch')
-
-        <div>
-            <x-input-label for="name" :value="__('Nome')" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $user->name)" required autofocus autocomplete="name" />
-            <x-input-error class="mt-2" :messages="$errors->get('name')" />
-        </div>
-
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username" />
-            <x-input-error class="mt-2" :messages="$errors->get('email')" />
-
-            <x-input-label for="Imagem" :value="__('Foto de Perfil')" />
-            <x-text-input id="imagem_perfil" name="imagem_perfil" type="file" class="mt-1 block w-full"  />
-            {{-- <x-input-error class="mt-2" :messages="$errors->get('email')" /> --}}
-
-            @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
-                <div>
-                    <p class="text-sm mt-2 text-gray-800">
-                        {{ __('Seu endereço de e-mail não verificou.') }}
-
-                        <button form="send-verification" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            {{ __('Clique aqui para reenviar o e-mail de verificação.') }}
-                        </button>
-                    </p>
-
-                    @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-sm text-green-600">
-                            {{ __('Um novo link de verificação foi enviado para o seu endereço de e -mail.') }}
-                        </p>
-                    @endif
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label for="name">Nome</label>
+                        <input id="name" name="name" type="text"
+                               class="form-control @error('name') is-invalid @enderror"
+                               value="{{ old('name', $user->name) }}" required autofocus autocomplete="name">
+                        @error('name')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
                 </div>
-            @endif
-        </div>
 
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Salvar') }}</x-primary-button>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email"
+                               class="form-control @error('email') is-invalid @enderror"
+                               value="{{ old('email', $user->email) }}" required autocomplete="username">
+                        @error('email')
+                            <span class="invalid-feedback">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+            </div>
 
-            @if (session('status') === 'profile-updated')
-                <p
-                    x-data="{ show: true }"
-                    x-show="show"
-                    x-transition
-                    x-init="setTimeout(() => show = false, 2000)"
-                    class="text-sm text-gray-600"
-                >{{ __('Saved.') }}</p>
-            @endif
-        </div>
-    </form>
-</section>
+            <div class="form-group">
+                <label for="imagem_perfil">Foto de Perfil</label>
+                <div class="custom-file">
+                    <input type="file" class="custom-file-input @error('imagem_perfil') is-invalid @enderror" id="imagem_perfil" name="imagem_perfil" accept="image/*">
+                    <label class="custom-file-label" for="imagem_perfil">Escolher arquivo</label>
+                </div>
+                @error('imagem_perfil')
+                    <span class="invalid-feedback d-block">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="row align-items-center mt-3">
+                <div class="col-md-3">
+                    <div class="profile-preview-box">
+                        <img
+                            id="photo-preview"
+                            src="{{ $user->imagem_perfil_url }}"
+                            class="profile-preview-img"
+                            alt="Preview"
+                        >
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <div class="alert alert-light border mb-0">
+                        <strong>Dica:</strong> use uma foto com boa iluminação e enquadramento central.
+                        @if($user->imagem_perfil)
+                            <div class="mt-2">
+                                <button type="submit" name="remove_photo" value="1" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-trash mr-1"></i> Remover foto atual
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fas fa-save mr-1"></i> Salvar dados
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

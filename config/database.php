@@ -75,7 +75,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => env('DB_SCHEMA', 'public'),
-            'migrations' => 'contas_receber.migrations',
+            'migrations' => 'public.migrations',
             'sslmode' => 'prefer',
         ],
 
