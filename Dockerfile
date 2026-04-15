@@ -26,7 +26,12 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo pdo_pgsql gd zip \
+    && a2dismod mpm_event || true \
+    && a2dismod mpm_worker || true \
+    && a2enmod mpm_prefork \
     && a2enmod rewrite \
+    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -37,13 +42,12 @@ RUN wget -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases
     && rm -f /tmp/wkhtmltox.deb \
     && rm -rf /var/lib/apt/lists/*
 
-COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
-
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
 RUN composer install --optimize-autoloader --no-scripts --no-interaction
 
+COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 COPY . .
 
 RUN mkdir -p storage bootstrap/cache \
