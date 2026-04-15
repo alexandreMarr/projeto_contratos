@@ -1,26 +1,32 @@
 #!/bin/sh
 set -e
 
-# Ensure only mpm_prefork is active — disable threaded MPMs to prevent the
-# "More than one MPM loaded" crash and the thread-safety conflict with the
-# php:8.2-apache image, which ships PHP compiled for mpm_prefork (non-threaded).
+# Mantém apenas um MPM ativo
 a2dismod mpm_worker mpm_event 2>/dev/null || true
 
 cd /var/www/html
 
-mkdir -p storage bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache || true
-chmod -R 775 storage bootstrap/cache || true
+# Estrutura necessária do Laravel
+mkdir -p \
+    storage/logs \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/app/public \
+    bootstrap/cache
 
-# ---------------------------------------------------------------------------
-# Generate .env from Railway environment variables if it does not exist.
-# Railway exposes Postgres credentials as PG* variables; we map them to the
-# DB_* names that Laravel expects.
-# ---------------------------------------------------------------------------
+# Garante arquivo de log
+touch storage/logs/laravel.log || true
+
+# Permissões
+chown -R www-data:www-data storage bootstrap/cache public || true
+chmod -R 775 storage bootstrap/cache public || true
+chmod 664 storage/logs/laravel.log || true
+
+# Gera .env se não existir
 if [ ! -f .env ]; then
     echo "INFO: .env not found — generating from environment variables."
 
-    # Derive APP_KEY: use the env var if already set, otherwise generate one.
     if [ -z "${APP_KEY}" ]; then
         GENERATED_KEY="base64:$(head -c 32 /dev/urandom | base64)"
     else
@@ -44,6 +50,7 @@ DB_PORT=${DB_PORT:-${PGPORT:-5432}}
 DB_DATABASE=${DB_DATABASE:-${PGDATABASE:-laravel}}
 DB_USERNAME=${DB_USERNAME:-${PGUSER:-postgres}}
 DB_PASSWORD=${DB_PASSWORD:-${PGPASSWORD:-}}
+DB_SCHEMA=${DB_SCHEMA:-public}
 
 BROADCAST_DRIVER=${BROADCAST_DRIVER:-log}
 CACHE_DRIVER=${CACHE_DRIVER:-file}
@@ -65,9 +72,17 @@ EOF
     echo "INFO: .env generated successfully."
 fi
 
+# Reforça storage link sempre no start
+rm -rf public/storage || true
+php artisan storage:link || true
+
+# Limpa caches
 php artisan config:clear || true
 php artisan cache:clear || true
+php artisan view:clear || true
+php artisan route:clear || true
 
+# Migrações
 php artisan migrate --force || true
 
 exec "$@"
