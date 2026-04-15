@@ -86,7 +86,7 @@ return [
     |
     */
 
-    'locale' => 'pt-BR',
+    'locale' => 'pt-br',
     'datetime' => 'd/m/Y H:i:s',
 
     /*
@@ -100,7 +100,7 @@ return [
     |
     */
 
-    'fallback_locale' => 'en',
+    'fallback_locale' => 'pt-br',
 
     /*
     |--------------------------------------------------------------------------

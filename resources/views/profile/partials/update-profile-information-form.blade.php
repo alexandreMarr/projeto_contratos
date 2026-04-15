@@ -40,13 +40,13 @@
 
             <div class="form-group">
                 <label for="imagem_perfil">Foto de Perfil</label>
-                <div class="custom-file">
-                    <input type="file" class="custom-file-input @error('imagem_perfil') is-invalid @enderror" id="imagem_perfil" name="imagem_perfil" accept="image/*">
-                    <label class="custom-file-label" for="imagem_perfil">Escolher arquivo</label>
-                </div>
-                @error('imagem_perfil')
-                    <span class="invalid-feedback d-block">{{ $message }}</span>
-                @enderror
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input @error('photo') is-invalid @enderror" id="imagem_perfil" name="photo" accept="image/*">
+                        <label class="custom-file-label" for="imagem_perfil">Escolher arquivo</label>
+                    </div>
+                    @error('photo')
+                        <span class="invalid-feedback d-block">{{ $message }}</span>
+                    @enderror
             </div>
 
             <div class="row align-items-center mt-3">

@@ -34,11 +34,11 @@ class User extends Authenticatable
 
     public function getImagemPerfilUrlAttribute(): string
     {
-        if (!empty($this->imagem_perfil)) {
+        if (!empty($this->imagem_perfil) && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->imagem_perfil)) {
             return url('storage/' . ltrim($this->imagem_perfil, '/')) . '?v=' . optional($this->updated_at)->timestamp;
         }
 
-        return asset('vendor/adminlte/dist/img/user2-160x160.jpg');
+        return asset('vendor/adminlte/dist/img/Nova_364_azul.png');
     }
 
     public function adminlte_image()
