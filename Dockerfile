@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo pdo_pgsql gd zip \
-    && a2enmod rewrite \
+    && a2dismod mpm_prefork mpm_worker || true \
+    && a2enmod mpm_event rewrite \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
     && rm -rf /var/lib/apt/lists/*
 
